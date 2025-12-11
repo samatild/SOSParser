@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """WSGI entry point for production deployment"""
 
-from app import create_app
+from webapp.app import create_app
 
 application = create_app()
 

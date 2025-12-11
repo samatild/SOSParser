@@ -6,6 +6,7 @@ services:
     container_name: sosparser
     ports:
       - "8000:8000"
+    command: gunicorn --bind 0.0.0.0:8000 webapp.wsgi:application
     volumes:
       # Mount uploads and outputs for persistence (optional)
       - ./data/uploads:/app/webapp/uploads
@@ -14,6 +15,7 @@ services:
       - WEBAPP_HOST=0.0.0.0
       - WEBAPP_PORT=8000
       - WEBAPP_MAX_CONTENT_MB=2048
+      - FLASK_ENV=production
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]

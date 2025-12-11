@@ -33,11 +33,16 @@ Then open http://localhost:8000 in your browser.
 
 ## Supported Formats
 
+### SOSReport (Red Hat/CentOS/Ubuntu/Fedora)
 - `.tar.xz` (recommended)
 - `.tar.gz`
 - `.tar.bz2`
 - `.tgz`
 - `.tar`
+
+### Supportconfig (SUSE SLES/openSUSE)
+- `.txz` (tar.xz format)
+- `.tar.xz`
 
 
 ### Build Docker Image Locally

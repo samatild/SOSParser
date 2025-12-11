@@ -15,6 +15,7 @@
             <div class="title-section">
               <h1>SOSParser</h1>
               <p class="subtitle">Linux diagnostic file parser and analyzer</p>
+              <p class="format-support">Supports SOSReport & Supportconfig formats</p>
             </div>
           </div>
         </div>
@@ -34,13 +35,13 @@
         <div class="upload-card">
           <form id="analyze-form" method="post" action="{{ url_for('analyze') }}" enctype="multipart/form-data">
             <div class="form-group">
-              <label for="sosreport_file">SOSReport/Supportconfig File</label>
+              <label for="sosreport_file">Diagnostic File</label>
               <div class="file-input-wrapper">
                 <input 
                   id="sosreport_file" 
                   name="sosreport_file" 
                   type="file" 
-                  accept=".tar.xz,.tar.gz,.tar.bz2,.tgz,.tar" 
+                  accept=".tar.xz,.txz,.tar.gz,.tar.bz2,.tgz,.tar" 
                   required
                   class="file-input">
                 <div class="file-input-display">
@@ -49,7 +50,7 @@
                 </div>
               </div>
               <div class="help-text">
-                Supported: .tar.xz, .tar.gz, .tar.bz2, .tgz, .tar
+                Formats: SOSReport (.tar.xz, .tar.gz, .tar.bz2, .tgz) | Supportconfig (.txz)
               </div>
             </div>
 
@@ -59,7 +60,7 @@
           </form>
 
           <div class="info-panel">
-            <p>Automated analysis of sosreport/supportconfig files with comprehensive reporting.</p>
+            <p>Automated analysis of sosreport (RHEL/CentOS/Ubuntu) and supportconfig (SUSE) files with comprehensive reporting. Format is auto-detected.</p>
           </div>
         </div>
       </main>

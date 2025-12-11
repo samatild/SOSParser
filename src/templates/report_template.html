@@ -231,20 +231,62 @@
                 <div id="general" class="subtab-content active">
                     <h3>General Configuration</h3>
                     {% if system_config.general %}
+                    {% set gen = system_config.general %}
                     <table class="info-table">
-                        {% if system_config.general.hostname %}
-                        <tr><td class="label">Hostname</td><td class="value">{{ system_config.general.hostname }}</td></tr>
+                        {% if gen.collection_time %}
+                        <tr><td class="label">Collection Time</td><td class="value">{{ gen.collection_time }}</td></tr>
                         {% endif %}
-                        {% if system_config.general.timezone %}
-                        <tr><td class="label">Timezone</td><td class="value">{{ system_config.general.timezone }}</td></tr>
+                        {% if gen.uname %}
+                        <tr><td class="label">uname -a</td><td class="value"><pre>{{ gen.uname }}</pre></td></tr>
                         {% endif %}
-                        {% if system_config.general.locale %}
-                        <tr><td class="label">Locale</td><td class="value"><pre>{{ system_config.general.locale }}</pre></td></tr>
+                        {% if gen.virtualization %}
+                        <tr><td class="label">Virtualization</td><td class="value"><pre>{{ gen.virtualization }}</pre></td></tr>
                         {% endif %}
-                        {% if system_config.general.machine_id %}
-                        <tr><td class="label">Machine ID</td><td class="value"><code>{{ system_config.general.machine_id }}</code></td></tr>
+                        {% if gen.os_release %}
+                        <tr><td class="label">/etc/os-release</td><td class="value"><pre>{{ gen.os_release }}</pre></td></tr>
+                        {% endif %}
+                        {% if gen.verifications %}
+                        <tr><td class="label">Verification Notes</td><td class="value"><pre>{{ gen.verifications | join('\n') }}</pre></td></tr>
+                        {% endif %}
+                        {% if gen.uptime %}
+                        <tr><td class="label">Uptime</td><td class="value">{{ gen.uptime }}</td></tr>
+                        {% endif %}
+                        {% if gen.kernel_tainted %}
+                        <tr><td class="label">Kernel Tainted</td><td class="value"><pre>{{ gen.kernel_tainted }}</pre></td></tr>
                         {% endif %}
                     </table>
+                    {% if gen.cpu_vulnerabilities %}
+                    <h4>CPU Vulnerabilities</h4>
+                    <pre>{{ gen.cpu_vulnerabilities }}</pre>
+                    {% endif %}
+                    {% if gen.vmstat %}
+                    <h4>vmstat</h4>
+                    <pre>{{ gen.vmstat }}</pre>
+                    {% endif %}
+                    {% if gen.free %}
+                    <h4>Memory (free -k)</h4>
+                    <pre>{{ gen.free }}</pre>
+                    {% endif %}
+                    {% if gen.df_h %}
+                    <h4>Disk Usage (df -h)</h4>
+                    <pre>{{ gen.df_h }}</pre>
+                    {% endif %}
+                    {% if gen.df_i %}
+                    <h4>Inodes (df -i)</h4>
+                    <pre>{{ gen.df_i }}</pre>
+                    {% endif %}
+                    {% if gen.top_cpu %}
+                    <h4>Top CPU Processes</h4>
+                    <pre>{{ gen.top_cpu }}</pre>
+                    {% endif %}
+                    {% if gen.top_mem %}
+                    <h4>Top Memory Processes</h4>
+                    <pre>{{ gen.top_mem }}</pre>
+                    {% endif %}
+                    {% if gen.ps_ax %}
+                    <h4>Process Snapshot</h4>
+                    <pre>{{ gen.ps_ax }}</pre>
+                    {% endif %}
                     {% else %}
                     <p>No general configuration data available</p>
                     {% endif %}
@@ -256,6 +298,29 @@
                         {% if system_config.boot.cmdline %}
                         <h4>Kernel Command Line</h4>
                         <pre>{{ system_config.boot.cmdline }}</pre>
+                        {% endif %}
+                        {% if system_config.boot.secure_boot %}
+                        <h4>Secure Boot</h4>
+                        <pre>{{ system_config.boot.secure_boot }}</pre>
+                        {% endif %}
+                        {% if system_config.boot.efi_boot_current or system_config.boot.efi_boot_order %}
+                        <h4>EFI Boot Manager</h4>
+                        <table class="info-table">
+                            {% if system_config.boot.efi_boot_current %}
+                            <tr><td class="label">Current</td><td class="value">{{ system_config.boot.efi_boot_current }}</td></tr>
+                            {% endif %}
+                            {% if system_config.boot.efi_boot_order %}
+                            <tr><td class="label">Boot Order</td><td class="value">{{ system_config.boot.efi_boot_order | join(', ') }}</td></tr>
+                            {% endif %}
+                        </table>
+                        {% endif %}
+                        {% if system_config.boot.efi_boot_entries %}
+                        <h4>EFI Entries</h4>
+                        <pre>{{ system_config.boot.efi_boot_entries | join('\n') }}</pre>
+                        {% endif %}
+                        {% if system_config.boot.sbat_revocations %}
+                        <h4>SBAT Revocations</h4>
+                        <pre>{{ system_config.boot.sbat_revocations | join('\n') }}</pre>
                         {% endif %}
                         {% if system_config.boot.loader_entries %}
                         <h4>Boot Loader Entries</h4>
@@ -277,18 +342,46 @@
                 <div id="authentication" class="subtab-content">
                     <h3>Authentication Configuration</h3>
                     {% if system_config.authentication %}
-                        {% if system_config.authentication.nsswitch %}
-                        <h4>NSSwitch Configuration</h4>
-                        <pre>{{ system_config.authentication.nsswitch }}</pre>
+                        {% if system_config.authentication.verification_status %}
+                        <h4>Package Verification</h4>
+                        <pre>Status: {{ system_config.authentication.verification_status }}{% if system_config.authentication.verification_details %}\n{{ system_config.authentication.verification_details | join('\n') }}{% endif %}</pre>
                         {% endif %}
+
+                        {% if system_config.authentication.service_status %}
+                        <h4>SSHD Service Status</h4>
+                        <table class="info-table">
+                            {% if system_config.authentication.service_status.loaded %}
+                            <tr><td class="label">Loaded</td><td class="value">{{ system_config.authentication.service_status.loaded }}</td></tr>
+                            {% endif %}
+                            {% if system_config.authentication.service_status.active %}
+                            <tr><td class="label">Active</td><td class="value">{{ system_config.authentication.service_status.active }}</td></tr>
+                            {% endif %}
+                            {% if system_config.authentication.service_status.pid %}
+                            <tr><td class="label">Main PID</td><td class="value">{{ system_config.authentication.service_status.pid }}</td></tr>
+                            {% endif %}
+                        </table>
+                        {% endif %}
+
+                        {% if system_config.authentication.listening_ports %}
+                        <h4>Listening Ports</h4>
+                        <pre>{{ system_config.authentication.listening_ports | join('\n') }}</pre>
+                        {% endif %}
+
                         {% if system_config.authentication.sshd_config %}
                         <h4>SSHD Configuration</h4>
-                        <pre>{{ system_config.authentication.sshd_config }}</pre>
+                        <pre>{% if system_config.authentication.sshd_config is mapping %}{% for k,v in system_config.authentication.sshd_config.items() %}{{ k }} {{ v }}\n{% endfor %}{% else %}{{ system_config.authentication.sshd_config }}{% endif %}</pre>
                         {% endif %}
-                        {% if system_config.authentication.pam_files %}
-                        <h4>PAM Configuration Files</h4>
-                        <p>Found {{ system_config.authentication.pam_files | length }} PAM configuration files</p>
+
+                        {% if system_config.authentication.ssh_client_config %}
+                        <h4>SSH Client Configuration</h4>
+                        <pre>{% if system_config.authentication.ssh_client_config is mapping %}{% for k,v in system_config.authentication.ssh_client_config.items() %}{{ k }} {{ v }}\n{% endfor %}{% else %}{{ system_config.authentication.ssh_client_config }}{% endif %}</pre>
                         {% endif %}
+
+                        {% if system_config.authentication.pam_config %}
+                        <h4>PAM Configuration (/etc/pam.d/sshd)</h4>
+                        <pre>{{ system_config.authentication.pam_config | join('\n') }}</pre>
+                        {% endif %}
+
                     {% else %}
                     <p>No authentication configuration data available</p>
                     {% endif %}
@@ -297,32 +390,130 @@
                 <div id="services" class="subtab-content">
                     <h3>System Services</h3>
                     {% if system_config.services %}
-                        {% if system_config.services.failed_services %}
-                        <h4>Failed Services</h4>
-                        <pre>{{ system_config.services.failed_services }}</pre>
+                        {% set svc = system_config.services %}
+                        {% if svc.failed_services or svc.failed_services_entries %}
+                        <h4>Failed / Inactive Services</h4>
+                        {% set failed_list = svc.failed_services_entries if svc.failed_services_entries else svc.failed_services %}
+                        {% if failed_list is sequence %}
+                        <table class="info-table">
+                            <tr><th class="label">Name</th><th class="value">Status</th></tr>
+                            {% for s in failed_list %}
+                            <tr>
+                                <td class="label">{{ s.name or s }}</td>
+                                <td class="value">{{ s.active or s }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                        {% else %}
+                        <pre>{{ failed_list }}</pre>
                         {% endif %}
-                        {% if system_config.services.service_list %}
-                        <h4>Active Services</h4>
-                        <pre>{{ system_config.services.service_list }}</pre>
+                        {% endif %}
+
+                        {% if svc.entries or svc.service_list %}
+                        <h4>Service Status</h4>
+                        {% set entries = svc.entries if svc.entries else svc.service_list %}
+                        {% if entries is sequence %}
+                        <table class="info-table">
+                            <tr>
+                                <th class="label">Name</th>
+                                <th class="label">Description</th>
+                                <th class="label">Loaded</th>
+                                <th class="label">Active</th>
+                                <th class="label">Main PID</th>
+                            </tr>
+                            {% for s in entries %}
+                            <tr>
+                                <td class="label">{{ s.name or '' }}</td>
+                                <td class="value">{{ s.description or '' }}</td>
+                                <td class="value">{{ s.loaded or '' }}</td>
+                                <td class="value">{{ s.active or '' }}</td>
+                                <td class="value">{{ s.main_pid or '' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                        {% else %}
+                        <pre>{{ entries }}</pre>
                         {% endif %}
                     {% else %}
                     <p>No service data available</p>
+                    {% endif %}
                     {% endif %}
                 </div>
 
                 <div id="cron" class="subtab-content">
                     <h3>Cron Jobs</h3>
                     {% if system_config.cron %}
-                        {% if system_config.cron.crontab %}
-                        <h4>System Crontab</h4>
-                        <pre>{{ system_config.cron.crontab }}</pre>
+                        {% set cron = system_config.cron %}
+                        {% if cron.cron_verification_status %}
+                        <h4>Cron Package Verification</h4>
+                        <pre>{{ cron.cron_verification_status }}</pre>
                         {% endif %}
-                        {% if system_config.cron.cron_d %}
-                        <h4>Cron.d Files</h4>
-                        {% for filename, content in system_config.cron.cron_d.items() %}
-                        <h5>{{ filename }}</h5>
-                        <pre>{{ content }}</pre>
-                        {% endfor %}
+
+                        {% if cron.cron_service %}
+                        <h4>Cron Service Status</h4>
+                        <table class="info-table">
+                            {% if cron.cron_service.loaded %}
+                            <tr><td class="label">Loaded</td><td class="value">{{ cron.cron_service.loaded }}</td></tr>
+                            {% endif %}
+                            {% if cron.cron_service.active %}
+                            <tr><td class="label">Active</td><td class="value">{{ cron.cron_service.active }}</td></tr>
+                            {% endif %}
+                            {% if cron.cron_service.pid %}
+                            <tr><td class="label">Main PID</td><td class="value">{{ cron.cron_service.pid }}</td></tr>
+                            {% endif %}
+                        </table>
+                        {% endif %}
+
+                        {% if cron.cron_dirs %}
+                        <h4>Cron Directories</h4>
+                        {% if cron.cron_dirs is mapping %}
+                            {% for dirname, files in cron.cron_dirs.items() %}
+                            <p><strong>{{ dirname }}</strong></p>
+                            <pre>{% if files|length > 0 %}{{ files | join('\n') }}{% else %}(empty){% endif %}</pre>
+                            {% endfor %}
+                        {% else %}
+                            <pre>{{ cron.cron_dirs }}</pre>
+                        {% endif %}
+                        {% endif %}
+
+                        {% if cron.crontab %}
+                        <h4>System Crontab (/etc/crontab)</h4>
+                        <pre>{{ cron.crontab }}</pre>
+                        {% endif %}
+
+                        {% if cron.at_verification_status or cron.at_service %}
+                        <h4>AT Scheduler</h4>
+                        <table class="info-table">
+                            {% if cron.at_verification_status %}
+                            <tr><td class="label">Package Verification</td><td class="value">{{ cron.at_verification_status }}</td></tr>
+                            {% endif %}
+                            {% if cron.at_service.loaded %}
+                            <tr><td class="label">Loaded</td><td class="value">{{ cron.at_service.loaded }}</td></tr>
+                            {% endif %}
+                            {% if cron.at_service.active %}
+                            <tr><td class="label">Active</td><td class="value">{{ cron.at_service.active }}</td></tr>
+                            {% endif %}
+                            {% if cron.at_service.pid %}
+                            <tr><td class="label">Main PID</td><td class="value">{{ cron.at_service.pid }}</td></tr>
+                            {% endif %}
+                        </table>
+                        {% endif %}
+
+                        {% if cron.at_jobs %}
+                        <h4>AT Jobs</h4>
+                        <pre>{{ cron.at_jobs | join('\n') }}</pre>
+                        {% endif %}
+
+                        {% if cron.at_jobs_content %}
+                        <h4>AT Job Contents</h4>
+                        {% if cron.at_jobs_content is mapping %}
+                            {% for path, content in cron.at_jobs_content.items() %}
+                            <p><strong>{{ path }}</strong></p>
+                            <pre>{{ content }}</pre>
+                            {% endfor %}
+                        {% else %}
+                            <pre>{{ cron.at_jobs_content }}</pre>
+                        {% endif %}
                         {% endif %}
                     {% else %}
                     <p>No cron job data available</p>
@@ -332,17 +523,89 @@
                 <div id="security" class="subtab-content">
                     <h3>Security Configuration</h3>
                     {% if system_config.security %}
-                        {% if system_config.security.selinux_status %}
-                        <h4>SELinux Status</h4>
-                        <pre>{{ system_config.security.selinux_status }}</pre>
+                        {% set sec = system_config.security %}
+                        {% if sec.selinux_status %}
+                        <h4>SELinux</h4>
+                        <pre>{{ sec.selinux_status }}</pre>
                         {% endif %}
-                        {% if system_config.security.firewall_zones %}
-                        <h4>Firewall Zones</h4>
-                        <pre>{{ system_config.security.firewall_zones }}</pre>
+
+                        {% if sec.apparmor %}
+                        <h4>AppArmor</h4>
+                        {% if sec.apparmor.verification %}
+                        <p><strong>Verification</strong></p>
+                        <pre>{{ sec.apparmor.verification | join('\n') }}</pre>
                         {% endif %}
-                        {% if system_config.security.audit_rules %}
-                        <h4>Audit Rules</h4>
-                        <pre>{{ system_config.security.audit_rules }}</pre>
+                        {% if sec.apparmor.missing_packages %}
+                        <p><strong>Missing Packages</strong></p>
+                        <pre>{{ sec.apparmor.missing_packages | join('\n') }}</pre>
+                        {% endif %}
+                        {% if sec.apparmor.service %}
+                        <p><strong>Service Status</strong></p>
+                        <table class="info-table">
+                            {% if sec.apparmor.service.loaded %}<tr><td class="label">Loaded</td><td class="value">{{ sec.apparmor.service.loaded }}</td></tr>{% endif %}
+                            {% if sec.apparmor.service.active %}<tr><td class="label">Active</td><td class="value">{{ sec.apparmor.service.active }}</td></tr>{% endif %}
+                            {% if sec.apparmor.service.pid %}<tr><td class="label">Main PID</td><td class="value">{{ sec.apparmor.service.pid }}</td></tr>{% endif %}
+                        </table>
+                        {% endif %}
+                        {% if sec.apparmor.aa_status %}
+                        <p><strong>aa-status</strong></p>
+                        <pre>{{ sec.apparmor.aa_status }}</pre>
+                        {% endif %}
+                        {% if sec.apparmor.parser_conf %}
+                        <p><strong>/etc/apparmor/parser.conf</strong></p>
+                        <pre>{{ sec.apparmor.parser_conf }}</pre>
+                        {% endif %}
+                        {% if sec.apparmor.log_excerpt %}
+                        <p><strong>Audit Log Excerpt</strong></p>
+                        <pre>{{ sec.apparmor.log_excerpt }}</pre>
+                        {% endif %}
+                        {% endif %}
+
+                        {% if sec.audit %}
+                        <h4>Audit</h4>
+                        {% if sec.audit.verification_status %}
+                        <p><strong>Package Verification</strong></p>
+                        <pre>{{ sec.audit.verification_status }}</pre>
+                        {% endif %}
+                        {% if sec.audit.service %}
+                        <p><strong>auditd Service</strong></p>
+                        <table class="info-table">
+                            {% if sec.audit.service.loaded %}<tr><td class="label">Loaded</td><td class="value">{{ sec.audit.service.loaded }}</td></tr>{% endif %}
+                            {% if sec.audit.service.active %}<tr><td class="label">Active</td><td class="value">{{ sec.audit.service.active }}</td></tr>{% endif %}
+                            {% if sec.audit.service.pid %}<tr><td class="label">Main PID</td><td class="value">{{ sec.audit.service.pid }}</td></tr>{% endif %}
+                        </table>
+                        {% endif %}
+                        {% if sec.audit.auditctl_status %}
+                        <p><strong>auditctl -s</strong></p>
+                        <pre>{{ sec.audit.auditctl_status }}</pre>
+                        {% endif %}
+                        {% if sec.audit.auditctl_rules %}
+                        <p><strong>Audit Rules</strong></p>
+                        <pre>{{ sec.audit.auditctl_rules }}</pre>
+                        {% endif %}
+                        {% if sec.audit.aureport_summary %}
+                        <p><strong>Aureport Summary</strong></p>
+                        <pre>{{ sec.audit.aureport_summary }}</pre>
+                        {% endif %}
+                        {% if sec.audit.rules %}
+                        <p><strong>Rules Files</strong></p>
+                        {% if sec.audit.rules is mapping %}
+                            {% for path, content in sec.audit.rules.items() %}
+                            <p><em>{{ path }}</em></p>
+                            <pre>{{ content }}</pre>
+                            {% endfor %}
+                        {% else %}
+                            <pre>{{ sec.audit.rules }}</pre>
+                        {% endif %}
+                        {% endif %}
+                        {% if sec.audit.auditd_conf %}
+                        <p><strong>auditd.conf</strong></p>
+                        <pre>{{ sec.audit.auditd_conf }}</pre>
+                        {% endif %}
+                        {% if sec.audit.audit_log_excerpt %}
+                        <p><strong>Audit Log Excerpt</strong></p>
+                        <pre>{{ sec.audit.audit_log_excerpt }}</pre>
+                        {% endif %}
                         {% endif %}
                     {% else %}
                     <p>No security configuration data available</p>
@@ -376,20 +639,48 @@
                 <div id="kernel-modules" class="subtab-content">
                     <h3>Kernel Modules & Parameters</h3>
                     {% if system_config.kernel_modules %}
-                        {% if system_config.kernel_modules.lsmod %}
+                        {% set km = system_config.kernel_modules %}
+                        {% if km.sysctl_service %}
+                        <h4>systemd-sysctl Service</h4>
+                        <table class="info-table">
+                            {% if km.sysctl_service.loaded %}<tr><td class="label">Loaded</td><td class="value">{{ km.sysctl_service.loaded }}</td></tr>{% endif %}
+                            {% if km.sysctl_service.active %}<tr><td class="label">Active</td><td class="value">{{ km.sysctl_service.active }}</td></tr>{% endif %}
+                            {% if km.sysctl_service.pid %}<tr><td class="label">Main PID</td><td class="value">{{ km.sysctl_service.pid }}</td></tr>{% endif %}
+                        </table>
+                        {% endif %}
+                        {% if km.ulimit %}
+                        <h4>ulimit -a</h4>
+                        <pre>{{ km.ulimit }}</pre>
+                        {% endif %}
+                        {% if km.sysctl_files %}
+                        <h4>Sysctl Configuration Files</h4>
+                        {% if km.sysctl_files is mapping %}
+                            {% for path, content in km.sysctl_files.items() %}
+                            <p><em>{{ path }}</em></p>
+                            <pre>{{ content }}</pre>
+                            {% endfor %}
+                        {% else %}
+                            <pre>{{ km.sysctl_files }}</pre>
+                        {% endif %}
+                        {% endif %}
+                        {% if km.sysctl_all %}
+                        <h4>Kernel Parameters (sysctl -a)</h4>
+                        <pre>{{ km.sysctl_all }}</pre>
+                        {% endif %}
+                        {% if km.lsmod %}
                         <h4>Loaded Modules</h4>
-                        <pre>{{ system_config.kernel_modules.lsmod }}</pre>
+                        <pre>{{ km.lsmod }}</pre>
                         {% endif %}
-                        {% if system_config.kernel_modules.sysctl_all %}
-                        <h4>Kernel Parameters (sysctl)</h4>
-                        <pre>{{ system_config.kernel_modules.sysctl_all }}</pre>
-                        {% endif %}
-                        {% if system_config.kernel_modules.modprobe_d %}
+                        {% if km.modprobe_d %}
                         <h4>Module Configuration (/etc/modprobe.d/)</h4>
-                        {% for filename, content in system_config.kernel_modules.modprobe_d.items() %}
-                        <h5>{{ filename }}</h5>
-                        <pre>{{ content }}</pre>
-                        {% endfor %}
+                        {% if km.modprobe_d is mapping %}
+                            {% for filename, content in km.modprobe_d.items() %}
+                            <h5>{{ filename }}</h5>
+                            <pre>{{ content }}</pre>
+                            {% endfor %}
+                        {% else %}
+                            <pre>{{ km.modprobe_d }}</pre>
+                        {% endif %}
                         {% endif %}
                     {% else %}
                     <p>No kernel module data available</p>
@@ -507,6 +798,7 @@
                     <button class="subtab-button" data-subtab="dns">DNS</button>
                     <button class="subtab-button" data-subtab="firewall">Firewall</button>
                     <button class="subtab-button" data-subtab="networkmanager">NetworkManager</button>
+                    <button class="subtab-button" data-subtab="connectivity">Connectivity</button>
                 </nav>
 
                 <div id="interfaces" class="subtab-content active">
@@ -536,6 +828,26 @@
                         <h4>IPv6 Routes</h4>
                         <pre>{{ network.routing.ip6_route }}</pre>
                         {% endif %}
+                        {% if network.routing.route_table_local %}
+                        <h4>Route Table (local)</h4>
+                        <pre>{{ network.routing.route_table_local }}</pre>
+                        {% endif %}
+                        {% if network.routing.route_table_main %}
+                        <h4>Route Table (main)</h4>
+                        <pre>{{ network.routing.route_table_main }}</pre>
+                        {% endif %}
+                        {% if network.routing.route_table_default %}
+                        <h4>Route Table (default)</h4>
+                        <pre>{{ network.routing.route_table_default }}</pre>
+                        {% endif %}
+                        {% if network.routing.route_table_cache %}
+                        <h4>Route Table (cache)</h4>
+                        <pre>{{ network.routing.route_table_cache }}</pre>
+                        {% endif %}
+                        {% if network.routing.route_table_cache_v6 %}
+                        <h4>Route Table (IPv6 cache)</h4>
+                        <pre>{{ network.routing.route_table_cache_v6 }}</pre>
+                        {% endif %}
                     {% else %}
                     <p>No routing data available</p>
                     {% endif %}
@@ -547,6 +859,14 @@
                         {% if network.dns.resolv_conf %}
                         <h4>/etc/resolv.conf</h4>
                         <pre>{{ network.dns.resolv_conf }}</pre>
+                        {% endif %}
+                        {% if network.dns.nsswitch %}
+                        <h4>/etc/nsswitch.conf</h4>
+                        <pre>{{ network.dns.nsswitch }}</pre>
+                        {% endif %}
+                        {% if network.dns.nscd_status %}
+                        <h4>nscd.service</h4>
+                        <pre>{{ network.dns.nscd_status }}</pre>
                         {% endif %}
                         {% if network.dns.hosts %}
                         <h4>/etc/hosts</h4>
@@ -564,9 +884,21 @@
                         <h4>Firewalld Zones</h4>
                         <pre>{{ network.firewall.firewall_zones }}</pre>
                         {% endif %}
+                        {% if network.firewall.firewalld %}
+                        <h4>Firewalld Status</h4>
+                        <pre>{{ network.firewall.firewalld }}</pre>
+                        {% endif %}
                         {% if network.firewall.iptables %}
-                        <h4>iptables Rules</h4>
+                        <h4>iptables</h4>
                         <pre>{{ network.firewall.iptables }}</pre>
+                        {% endif %}
+                        {% if network.firewall.ip6tables %}
+                        <h4>ip6tables</h4>
+                        <pre>{{ network.firewall.ip6tables }}</pre>
+                        {% endif %}
+                        {% if network.firewall.iptables_save %}
+                        <h4>iptables-save</h4>
+                        <pre>{{ network.firewall.iptables_save }}</pre>
                         {% endif %}
                     {% else %}
                     <p>No firewall data available</p>
@@ -586,6 +918,30 @@
                         {% endif %}
                     {% else %}
                     <p>No NetworkManager data available</p>
+                    {% endif %}
+                </div>
+
+                <div id="connectivity" class="subtab-content">
+                    <h3>Connectivity Checks</h3>
+                    {% if network.connectivity %}
+                        {% if network.connectivity.ping_loopback %}
+                        <h4>Ping Loopback (127.0.0.1)</h4>
+                        <pre>{{ network.connectivity.ping_loopback }}</pre>
+                        {% endif %}
+                        {% if network.connectivity.ping_self %}
+                        <h4>Ping Self (interface address)</h4>
+                        <pre>{{ network.connectivity.ping_self }}</pre>
+                        {% endif %}
+                        {% if network.connectivity.ping_gateway %}
+                        <h4>Ping Gateway</h4>
+                        <pre>{{ network.connectivity.ping_gateway }}</pre>
+                        {% endif %}
+                        {% if network.connectivity.ping_dns %}
+                        <h4>Ping DNS Server</h4>
+                        <pre>{{ network.connectivity.ping_dns }}</pre>
+                        {% endif %}
+                    {% else %}
+                    <p>No connectivity test data available</p>
                     {% endif %}
                 </div>
             </section>
@@ -629,6 +985,7 @@
                 <nav class="subtabs">
                     <button class="subtab-button active" data-subtab="cloud-overview">Overview</button>
                     <button class="subtab-button" data-subtab="cloud-init">Cloud-Init</button>
+                    <button class="subtab-button" data-subtab="cloud-metadata">Metadata</button>
                     {% if cloud.provider == 'aws' %}
                     <button class="subtab-button" data-subtab="aws">AWS Services</button>
                     {% elif cloud.provider == 'azure' %}
@@ -756,6 +1113,19 @@
                         {% endif %}
                     {% else %}
                     <p>No cloud-init data available</p>
+                    {% endif %}
+                </div>
+
+                <!-- Cloud Metadata Subtab -->
+                <div id="cloud-metadata" class="subtab-content">
+                    <h3>Cloud Metadata</h3>
+                    {% if cloud.azure and cloud.azure.metadata %}
+                    <h4>Azure Instance Metadata</h4>
+                    <pre>{{ cloud.azure.metadata }}</pre>
+                    {% elif cloud.metadata %}
+                    <pre>{{ cloud.metadata }}</pre>
+                    {% else %}
+                    <p>No metadata available</p>
                     {% endif %}
                 </div>
 
@@ -915,6 +1285,13 @@
                         <div id="log-auth" class="log-container"></div>
                         <script>
                             new LogViewer('log-auth', {{ logs.auth.auth_log | tojson }});
+                        </script>
+                        {% endif %}
+                        {% if logs.auth.audit_log %}
+                        <h4>/var/log/audit/audit.log</h4>
+                        <div id="log-audit" class="log-container"></div>
+                        <script>
+                            new LogViewer('log-audit', {{ logs.auth.audit_log | tojson }});
                         </script>
                         {% endif %}
                     {% else %}

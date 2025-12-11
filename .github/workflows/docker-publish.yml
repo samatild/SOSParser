@@ -4,11 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*.*.*'
-  pull_request:
-    branches:
-      - main
 
 env:
   DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/sosparser
@@ -53,6 +48,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -69,4 +65,4 @@ jobs:
           platforms: linux/amd64,linux/arm64
 
       - name: Image digest
-        run: echo ${{ steps.docker_build.outputs.digest }}
+        run: echo ${{ steps.build.outputs.digest }}

@@ -8,9 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Supportconfig file format support
-- Enhanced scenario-based detection
+- Scenario-based detection improvements
 - Performance optimizations for large reports
+
+---
+
+## [0.2.0] - 2025-12-11
+
+### Added
+- Supportconfig end-to-end parsing and report rendering across tabs (boot, authentication, services, cron, security, packages, kernel parameters, general, filesystem, network, logs, cloud) using the sample `scc_sles15_251211_1144` bundle.
+- Network connectivity, DNS/hosts, firewall, routing, interfaces, and connectivity subtabs populated for supportconfig.
+- Cloud tab metadata subtab with Azure/public cloud details from `public_cloud/` (metadata, instance init, hosts, cloudregister, credentials, osrelease).
+- Helper `generate_supportconfig_example_report` for rapid local testing of the example supportconfig archive.
+
+### Changed
+- Jinja report template updated with safer `is mapping` / `is sequence` guards and new subtabs (connectivity, metadata) to avoid `.items()` errors on sosreport data.
+- Filesystem, network, and system config analyzers now return structured dictionaries aligned with template expectations (e.g., mounts, LVM, filesystems, services, cron, security, packages, kernel modules, general).
+- Docker runtime uses Gunicorn (`webapp.wsgi:application`) and Flask debug disabled by default.
+
+### Fixed
+- Resolved Jinja `TemplateSyntaxError` due to missing `{% endif %}` in services section.
+- Fixed `ModuleNotFoundError` for Gunicorn by using absolute import in `webapp/wsgi.py`.
+- Prevented `'str' object has no attribute 'items'` during sosreport rendering by adding type checks in the template.
 
 ---
 
@@ -157,5 +176,6 @@ Future releases will include:
 
 ---
 
-[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/samatild/SOSParser/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/samatild/SOSParser/releases/tag/v0.1.0

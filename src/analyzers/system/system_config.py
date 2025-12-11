@@ -105,22 +105,76 @@ class SystemConfigAnalyzer:
         Logger.debug("Analyzing systemd services")
         
         data = {}
+        entries = []
+        failed_entries = []
         
         # Service list from sos_commands
         service_list = base_path / 'sos_commands' / 'systemd' / 'systemctl_list-units'
         if service_list.exists():
-            data['service_list'] = service_list.read_text()
+            raw = service_list.read_text()
+            data['service_list'] = raw
+            lines = [l for l in raw.splitlines() if l.strip()]
+            # Skip header lines until we find the column header
+            for line in lines:
+                if line.lower().startswith('unit '):
+                    continue
+                if line.startswith('LOAD '):
+                    continue
+                if 'units listed' in line:
+                    continue
+                parts = line.split(None, 4)
+                if len(parts) >= 5:
+                    unit, load, active, sub, desc = parts[0:5]
+                elif len(parts) >= 4:
+                    unit, load, active, sub = parts[0:4]
+                    desc = ''
+                else:
+                    continue
+                entries.append({
+                    'name': unit,
+                    'loaded': load,
+                    'active': f"{active} {sub}".strip(),
+                    'description': desc,
+                })
         
         # Failed services
         failed_services = base_path / 'sos_commands' / 'systemd' / 'systemctl_list-units_--failed'
         if failed_services.exists():
-            data['failed_services'] = failed_services.read_text()
+            raw = failed_services.read_text()
+            data['failed_services'] = raw
+            lines = [l for l in raw.splitlines() if l.strip()]
+            for line in lines:
+                if line.lower().startswith('unit '):
+                    continue
+                if line.startswith('LOAD '):
+                    continue
+                if 'failed units listed' in line:
+                    continue
+                parts = line.split(None, 4)
+                if len(parts) >= 5:
+                    unit, load, active, sub, desc = parts[0:5]
+                elif len(parts) >= 4:
+                    unit, load, active, sub = parts[0:4]
+                    desc = ''
+                else:
+                    continue
+                failed_entries.append({
+                    'name': unit,
+                    'loaded': load,
+                    'active': f"{active} {sub}".strip(),
+                    'description': desc,
+                })
         
         # Enabled services
         enabled_services = base_path / 'sos_commands' / 'systemd' / 'systemctl_list-unit-files'
         if enabled_services.exists():
             content = enabled_services.read_text()
             data['enabled_services'] = content[:10000]  # Limit size
+
+        if entries:
+            data['entries'] = entries
+        if failed_entries:
+            data['failed_services_entries'] = failed_entries
         
         return data
     
