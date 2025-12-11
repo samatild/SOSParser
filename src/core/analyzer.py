@@ -4,7 +4,7 @@
 import tempfile
 import shutil
 from pathlib import Path
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from analyzers.system.system_info import (
     get_hostname,
@@ -50,7 +50,10 @@ class SOSReportAnalyzer:
         self.output_dir_override = Path(output_dir_override).resolve() if output_dir_override else None
         self.template_dir = Path(__file__).parent.parent / 'templates'
         self.static_dir = Path(__file__).parent.parent / 'static'
-        self.env = Environment(loader=FileSystemLoader(str(self.template_dir)))
+        self.env = Environment(
+            loader=FileSystemLoader(str(self.template_dir)),
+            autoescape=select_autoescape(enabled_extensions=("html", "xml"))
+        )
         
         # Create output directory name based on tarball filename
         tarball_name = self.tarball_path.stem
