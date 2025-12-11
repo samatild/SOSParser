@@ -58,10 +58,14 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
-# Logs
+# Logs (but not src/analyzers/logs analyzer module!)
 *.log
-logs/
 *.out
+/logs/
+webapp/logs/
+
+# Exception: Allow the logs analyzer module
+!src/analyzers/logs/
 
 # Environment variables
 .env
