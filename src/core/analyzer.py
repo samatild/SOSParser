@@ -28,6 +28,7 @@ from analyzers.scenarios.scenario_analyzer import BaseScenarioAnalyzer
 
 # Supportconfig analyzers
 from analyzers.supportconfig.system_info import SupportconfigSystemInfo
+from analyzers.supportconfig.system_config import SupportconfigSystemConfig
 from analyzers.supportconfig.network import SupportconfigNetwork
 from analyzers.supportconfig.filesystem import SupportconfigFilesystem
 
@@ -124,6 +125,7 @@ class SOSReportAnalyzer:
         
         # Initialize supportconfig analyzers
         sys_analyzer = SupportconfigSystemInfo(extracted_dir)
+        config_analyzer = SupportconfigSystemConfig(extracted_dir)
         net_analyzer = SupportconfigNetwork(extracted_dir)
         fs_analyzer = SupportconfigFilesystem(extracted_dir)
         
@@ -138,11 +140,13 @@ class SOSReportAnalyzer:
         system_load = sys_analyzer.get_system_load()
         dmi_info = sys_analyzer.get_dmi_info()
         
-        # System config (simplified for supportconfig)
+        # Get system configuration
+        Logger.debug("Analyzing system configuration (supportconfig)")
+        config_data = config_analyzer.analyze()
         system_config = {
             'general': {'note': 'Supportconfig provides pre-processed system information'},
-            'boot': {},
-            'authentication': {},
+            'boot': config_data.get('boot', {}),
+            'authentication': config_data.get('ssh', {}),  # SSH config goes to authentication
             'services': {},
             'cron': {},
             'security': {},
