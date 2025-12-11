@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Main analyzer for SOSReport files"""
+"""Main analyzer for SOSReport and Supportconfig files"""
 
 import tempfile
 import shutil
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
+# SOSReport analyzers
 from analyzers.system.system_info import (
     get_hostname,
     get_os_release,
@@ -24,6 +25,12 @@ from analyzers.network.network import NetworkAnalyzer
 from analyzers.logs.logs import LogAnalyzer
 from analyzers.cloud.cloud import CloudAnalyzer
 from analyzers.scenarios.scenario_analyzer import BaseScenarioAnalyzer
+
+# Supportconfig analyzers
+from analyzers.supportconfig.system_info import SupportconfigSystemInfo
+from analyzers.supportconfig.network import SupportconfigNetwork
+from analyzers.supportconfig.filesystem import SupportconfigFilesystem
+
 from reporting.report_generator import (
     prepare_report_data,
     format_scenario_results_html
@@ -35,6 +42,7 @@ from utils.file_operations import (
     get_sosreport_timestamp
 )
 from utils.output_manager import setup_output_directory
+from utils.format_detector import detect_format, get_format_info
 
 
 class SOSReportAnalyzer:
@@ -102,99 +110,182 @@ class SOSReportAnalyzer:
         except Exception as e:
             Logger.warning(f"Failed to cleanup temporary directory {self.temp_dir}: {str(e)}")
     
+    def analyze_supportconfig(self, extracted_dir: Path):
+        """
+        Analyze a supportconfig format file.
+        
+        Args:
+            extracted_dir: Path to extracted supportconfig directory
+            
+        Returns:
+            Tuple of (system_info, system_config, filesystem, network, logs, cloud)
+        """
+        Logger.info("Analyzing supportconfig format")
+        
+        # Initialize supportconfig analyzers
+        sys_analyzer = SupportconfigSystemInfo(extracted_dir)
+        net_analyzer = SupportconfigNetwork(extracted_dir)
+        fs_analyzer = SupportconfigFilesystem(extracted_dir)
+        
+        # Get system information
+        hostname = sys_analyzer.get_hostname()
+        os_info = sys_analyzer.get_os_info()
+        kernel_info = sys_analyzer.get_kernel_info()
+        uptime = sys_analyzer.get_uptime()
+        cpu_info = sys_analyzer.get_cpu_info()
+        memory_info = sys_analyzer.get_memory_info()
+        disk_info = sys_analyzer.get_disk_info()
+        system_load = sys_analyzer.get_system_load()
+        dmi_info = sys_analyzer.get_dmi_info()
+        
+        # System config (simplified for supportconfig)
+        system_config = {
+            'general': {'note': 'Supportconfig provides pre-processed system information'},
+            'boot': {},
+            'authentication': {},
+            'services': {},
+            'cron': {},
+            'security': {},
+            'packages': {},
+            'kernel_modules': {},
+            'users_groups': {},
+        }
+        
+        # Analyze filesystem
+        filesystem = fs_analyzer.analyze()
+        
+        # Analyze network
+        network = net_analyzer.analyze()
+        
+        # Logs (basic for supportconfig)
+        logs = {
+            'system': {'content': 'Log data available in messages_config.txt', 'analysis': {}},
+            'kernel': {'content': '', 'analysis': {}},
+            'auth': {'content': '', 'analysis': {}},
+            'services': {'content': '', 'analysis': {}},
+        }
+        
+        # Cloud detection (TODO: implement for supportconfig)
+        cloud = None
+        
+        return (hostname, os_info, kernel_info, uptime, cpu_info, memory_info, 
+                disk_info, system_load, dmi_info, system_config, filesystem, network, logs, cloud)
+    
     def generate_report(self):
         """Generate the analysis report"""
         Logger.debug("Starting report generation.")
         
         try:
-            # Get diagnostic timestamp
-            Logger.debug("Getting sosreport timestamp.")
-            diagnostic_timestamp = get_sosreport_timestamp(self.tarball_path)
-            Logger.debug(f"Sosreport timestamp: {diagnostic_timestamp}")
-            
             # Extract the tarball
             Logger.debug("Extracting tarball.")
             extracted_dir = extract_tarball(self.tarball_path, self.temp_dir)
             Logger.debug(f"Extracted to: {extracted_dir}")
             
-            # Get system information
-            Logger.debug("Getting system information.")
-            hostname = get_hostname(extracted_dir)
-            os_info = get_os_release(extracted_dir)
-            kernel_info = get_kernel_info(extracted_dir)
-            uptime = get_uptime(extracted_dir)
-            cpu_info = get_cpu_info(extracted_dir)
-            memory_info = get_memory_info(extracted_dir)
-            disk_info = get_disk_info(extracted_dir)
-            system_load = get_system_load(extracted_dir)
-            dmi_info = get_dmidecode_info(extracted_dir)
+            # Detect format
+            format_type = detect_format(extracted_dir)
+            format_info = get_format_info(format_type)
+            Logger.info(f"Detected format: {format_info['name']} ({format_type})")
             
-            # Analyze system configuration
-            Logger.debug("Analyzing system configuration.")
-            system_config = {
-                'general': self.system_config_analyzer.analyze_general(extracted_dir),
-                'boot': self.system_config_analyzer.analyze_boot(extracted_dir),
-                'authentication': self.system_config_analyzer.analyze_authentication(extracted_dir),
-                'services': self.system_config_analyzer.analyze_services(extracted_dir),
-                'cron': self.system_config_analyzer.analyze_cron(extracted_dir),
-                'security': self.system_config_analyzer.analyze_security(extracted_dir),
-                'packages': self.system_config_analyzer.analyze_packages(extracted_dir),
-                'kernel_modules': self.system_config_analyzer.analyze_kernel_modules(extracted_dir),
-                'users_groups': self.system_config_analyzer.analyze_users_groups(extracted_dir),
-            }
+            if format_type == 'unknown':
+                raise ValueError(f"Unknown or unsupported diagnostic file format at {extracted_dir}")
             
-            # Analyze filesystem
-            Logger.debug("Analyzing filesystem.")
-            filesystem = {
-                'mounts': self.filesystem_analyzer.analyze_mounts(extracted_dir),
-                'lvm': self.filesystem_analyzer.analyze_lvm(extracted_dir),
-                'disk_usage': self.filesystem_analyzer.analyze_disk_usage(extracted_dir),
-                'filesystems': self.filesystem_analyzer.analyze_filesystems(extracted_dir),
-            }
+            # Get diagnostic timestamp
+            Logger.debug("Getting diagnostic timestamp.")
+            if format_type == 'sosreport':
+                diagnostic_timestamp = get_sosreport_timestamp(self.tarball_path)
+            else:
+                # For supportconfig, use current time or extract from file
+                from datetime import datetime
+                diagnostic_timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            Logger.debug(f"Diagnostic timestamp: {diagnostic_timestamp}")
             
-            # Analyze network
-            Logger.debug("Analyzing network.")
-            network = {
-                'interfaces': self.network_analyzer.analyze_interfaces(extracted_dir),
-                'routing': self.network_analyzer.analyze_routing(extracted_dir),
-                'dns': self.network_analyzer.analyze_dns(extracted_dir),
-                'firewall': self.network_analyzer.analyze_firewall(extracted_dir),
-                'networkmanager': self.network_analyzer.analyze_networkmanager(extracted_dir),
-            }
-            
-            # Analyze logs
-            Logger.debug("Analyzing logs.")
-            logs = {
-                'system': self.log_analyzer.analyze_system_logs(extracted_dir),
-                'kernel': self.log_analyzer.analyze_kernel_logs(extracted_dir),
-                'auth': self.log_analyzer.analyze_auth_logs(extracted_dir),
-                'services': self.log_analyzer.analyze_service_logs(extracted_dir),
-            }
-            
-            # Analyze cloud services
-            Logger.debug("Analyzing cloud services.")
-            cloud_provider = self.cloud_analyzer.detect_cloud_provider(extracted_dir)
-            cloud = None
-            
-            if cloud_provider:
-                Logger.info(f"Cloud provider detected: {cloud_provider}")
-                cloud = {
-                    'provider': cloud_provider,
-                    'virtualization': self.cloud_analyzer.analyze_general_virtualization(extracted_dir),
-                    'cloud_init': self.cloud_analyzer.analyze_cloud_init(extracted_dir),
+            # Route to appropriate analyzer based on format
+            if format_type == 'sosreport':
+                Logger.debug("Using SOSReport analyzers")
+                # Get system information
+                Logger.debug("Getting system information.")
+                hostname = get_hostname(extracted_dir)
+                os_info = get_os_release(extracted_dir)
+                kernel_info = get_kernel_info(extracted_dir)
+                uptime = get_uptime(extracted_dir)
+                cpu_info = get_cpu_info(extracted_dir)
+                memory_info = get_memory_info(extracted_dir)
+                disk_info = get_disk_info(extracted_dir)
+                system_load = get_system_load(extracted_dir)
+                dmi_info = get_dmidecode_info(extracted_dir)
+                
+                # Analyze system configuration
+                Logger.debug("Analyzing system configuration.")
+                system_config = {
+                    'general': self.system_config_analyzer.analyze_general(extracted_dir),
+                    'boot': self.system_config_analyzer.analyze_boot(extracted_dir),
+                    'authentication': self.system_config_analyzer.analyze_authentication(extracted_dir),
+                    'services': self.system_config_analyzer.analyze_services(extracted_dir),
+                    'cron': self.system_config_analyzer.analyze_cron(extracted_dir),
+                    'security': self.system_config_analyzer.analyze_security(extracted_dir),
+                    'packages': self.system_config_analyzer.analyze_packages(extracted_dir),
+                    'kernel_modules': self.system_config_analyzer.analyze_kernel_modules(extracted_dir),
+                    'users_groups': self.system_config_analyzer.analyze_users_groups(extracted_dir),
                 }
                 
-                # Add provider-specific analysis
-                if cloud_provider == 'aws':
-                    cloud['aws'] = self.cloud_analyzer.analyze_aws(extracted_dir)
-                elif cloud_provider == 'azure':
-                    cloud['azure'] = self.cloud_analyzer.analyze_azure(extracted_dir)
-                elif cloud_provider == 'gcp':
-                    cloud['gcp'] = self.cloud_analyzer.analyze_gcp(extracted_dir)
-                elif cloud_provider == 'oracle':
-                    cloud['oracle'] = self.cloud_analyzer.analyze_oracle_cloud(extracted_dir)
-            else:
-                Logger.debug("No cloud provider detected, skipping cloud analysis.")
+                # Analyze filesystem
+                Logger.debug("Analyzing filesystem.")
+                filesystem = {
+                    'mounts': self.filesystem_analyzer.analyze_mounts(extracted_dir),
+                    'lvm': self.filesystem_analyzer.analyze_lvm(extracted_dir),
+                    'disk_usage': self.filesystem_analyzer.analyze_disk_usage(extracted_dir),
+                    'filesystems': self.filesystem_analyzer.analyze_filesystems(extracted_dir),
+                }
+                
+                # Analyze network
+                Logger.debug("Analyzing network.")
+                network = {
+                    'interfaces': self.network_analyzer.analyze_interfaces(extracted_dir),
+                    'routing': self.network_analyzer.analyze_routing(extracted_dir),
+                    'dns': self.network_analyzer.analyze_dns(extracted_dir),
+                    'firewall': self.network_analyzer.analyze_firewall(extracted_dir),
+                    'networkmanager': self.network_analyzer.analyze_networkmanager(extracted_dir),
+                }
+                
+                # Analyze logs
+                Logger.debug("Analyzing logs.")
+                logs = {
+                    'system': self.log_analyzer.analyze_system_logs(extracted_dir),
+                    'kernel': self.log_analyzer.analyze_kernel_logs(extracted_dir),
+                    'auth': self.log_analyzer.analyze_auth_logs(extracted_dir),
+                    'services': self.log_analyzer.analyze_service_logs(extracted_dir),
+                }
+                
+                # Analyze cloud services
+                Logger.debug("Analyzing cloud services.")
+                cloud_provider = self.cloud_analyzer.detect_cloud_provider(extracted_dir)
+                cloud = None
+                
+                if cloud_provider:
+                    Logger.info(f"Cloud provider detected: {cloud_provider}")
+                    cloud = {
+                        'provider': cloud_provider,
+                        'virtualization': self.cloud_analyzer.analyze_general_virtualization(extracted_dir),
+                        'cloud_init': self.cloud_analyzer.analyze_cloud_init(extracted_dir),
+                    }
+                    
+                    # Add provider-specific analysis
+                    if cloud_provider == 'aws':
+                        cloud['aws'] = self.cloud_analyzer.analyze_aws(extracted_dir)
+                    elif cloud_provider == 'azure':
+                        cloud['azure'] = self.cloud_analyzer.analyze_azure(extracted_dir)
+                    elif cloud_provider == 'gcp':
+                        cloud['gcp'] = self.cloud_analyzer.analyze_gcp(extracted_dir)
+                    elif cloud_provider == 'oracle':
+                        cloud['oracle'] = self.cloud_analyzer.analyze_oracle_cloud(extracted_dir)
+                else:
+                    Logger.debug("No cloud provider detected, skipping cloud analysis.")
+                    
+            elif format_type == 'supportconfig':
+                Logger.debug("Using Supportconfig analyzers")
+                (hostname, os_info, kernel_info, uptime, cpu_info, memory_info, 
+                 disk_info, system_load, dmi_info, system_config, filesystem, 
+                 network, logs, cloud) = self.analyze_supportconfig(extracted_dir)
             
             # Analyze scenarios (optional, can be disabled)
             Logger.debug("Analyzing scenarios.")
