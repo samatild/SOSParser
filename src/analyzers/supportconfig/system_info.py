@@ -158,28 +158,30 @@ class SupportconfigSystemInfo:
                 
             sections = self.parser.extract_sections(content)
             for section in sections:
-                # Check for /proc/meminfo in Configuration File or File sections
-                if '/proc/meminfo' in section['header']:
-                    # Parse meminfo content
-                    for line in section['content'].split('\n'):
-                        if ':' in line:
-                            key, value = line.split(':', 1)
-                            key = key.strip()
-                            value = value.strip()
-                            
-                            if key == 'MemTotal':
-                                memory_info['total'] = value
-                            elif key == 'MemFree':
-                                memory_info['free'] = value
-                            elif key == 'MemAvailable':
-                                memory_info['available'] = value
-                            elif key == 'SwapTotal':
-                                memory_info['swap_total'] = value
-                            elif key == 'SwapFree':
-                                memory_info['swap_free'] = value
-                    
-                    if memory_info:  # Found it, stop searching
-                        return memory_info
+                # Check for Configuration File sections (file path is in content)
+                if section['type'] == 'Configuration':
+                    lines = section['content'].split('\n')
+                    if lines and '/proc/meminfo' in lines[0]:
+                        # Parse meminfo content (skip first line which is the path)
+                        for line in lines[1:]:
+                            if ':' in line:
+                                key, value = line.split(':', 1)
+                                key = key.strip()
+                                value = value.strip()
+                                
+                                if key == 'MemTotal':
+                                    memory_info['total'] = value
+                                elif key == 'MemFree':
+                                    memory_info['free'] = value
+                                elif key == 'MemAvailable':
+                                    memory_info['available'] = value
+                                elif key == 'SwapTotal':
+                                    memory_info['swap_total'] = value
+                                elif key == 'SwapFree':
+                                    memory_info['swap_free'] = value
+                        
+                        if memory_info:  # Found it, stop searching
+                            return memory_info
         
         return memory_info
     
