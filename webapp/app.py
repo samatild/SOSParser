@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import os
+import re
+import secrets
 import sys
 import uuid
 from datetime import datetime
@@ -96,6 +98,18 @@ def _remove_dir(target_dir: Path) -> None:
             shutil.rmtree(target_dir, ignore_errors=True)
     except Exception:
         pass
+
+
+_SCRIPT_TAG_PATTERN = re.compile(r"<script\b(?![^>]*\snonce=)([^>]*)>", re.IGNORECASE)
+
+
+def _inject_script_nonce(html: str, nonce: str) -> str:
+    """Add CSP nonces to trusted script tags so inline JS continues to run."""
+    def _add_nonce(match: re.Match) -> str:
+        attrs = match.group(1)
+        return f"<script{attrs} nonce=\"{nonce}\">"
+
+    return _SCRIPT_TAG_PATTERN.sub(_add_nonce, html)
 
 
 def create_app() -> Flask:
@@ -194,7 +208,7 @@ def create_app() -> Flask:
     @app.get("/reports/<token>/<path:filename>")
     def serve_report_file(token: str, filename: str):
         """Serve report files"""
-        base = Path(app.config["OUTPUT_FOLDER"]) / secure_filename(token)
+        base = (Path(app.config["OUTPUT_FOLDER"]) / secure_filename(token)).resolve()
         if not base.exists():
             abort(404)
         return send_from_directory(str(base), filename, as_attachment=False)
@@ -203,8 +217,14 @@ def create_app() -> Flask:
     def view_report(token: str):
         """View report and cleanup after delivery"""
         rel_path = request.args.get("path", "report.html")
-        base = Path(app.config["OUTPUT_FOLDER"]) / secure_filename(token)
-        report_path = base / rel_path
+        base = (Path(app.config["OUTPUT_FOLDER"]) / secure_filename(token)).resolve()
+        if not base.exists():
+            abort(404)
+        try:
+            report_path = (base / rel_path).resolve()
+            report_path.relative_to(base)
+        except Exception:
+            abort(404)
         if not report_path.exists():
             abort(404)
         try:
@@ -229,8 +249,21 @@ def create_app() -> Flask:
                 pass
             return response
 
+        script_nonce = secrets.token_urlsafe(16)
+        html = _inject_script_nonce(html, script_nonce)
         resp = make_response(html)
         resp.headers["Content-Type"] = "text/html; charset=utf-8"
+        resp.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            f"script-src 'self' 'nonce-{script_nonce}'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "font-src 'self'; "
+            "object-src 'none'; "
+            "base-uri 'none'; "
+            "frame-ancestors 'none'"
+        )
+        resp.headers["X-Content-Type-Options"] = "nosniff"
         return resp
 
     @app.get("/healthz")
