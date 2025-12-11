@@ -57,10 +57,11 @@ def allowed_tarball(filename: str) -> bool:
     """Check if file is a valid tarball format"""
     if not filename or "." not in filename:
         return False
-    # Check for .tar.xz, .tar.gz, .tar.bz2, .tar
+    # Check for .tar.xz, .txz, .tar.gz, .tar.bz2, .tgz, .tar
     lower = filename.lower()
     return (
-        lower.endswith('.tar.xz') or 
+        lower.endswith('.tar.xz') or
+        lower.endswith('.txz') or  # Supportconfig format
         lower.endswith('.tar.gz') or 
         lower.endswith('.tar.bz2') or
         lower.endswith('.tgz') or
@@ -153,7 +154,7 @@ def create_app() -> Flask:
             return redirect(url_for("index"))
 
         if not allowed_tarball(tarball_file.filename):
-            flash("Only .tar.xz, .tar.gz, .tar.bz2, and .tar files are accepted.", "error")
+            flash("Only .tar.xz, .txz, .tar.gz, .tar.bz2, .tgz, and .tar files are accepted.", "error")
             return redirect(url_for("index"))
 
         # Create a unique token directory for this analysis
