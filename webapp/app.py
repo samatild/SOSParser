@@ -38,9 +38,14 @@ _ensure_src_on_syspath()
 # Import after sys.path adjusted
 try:
     from core.analyzer import run_analysis
+except Exception as e:
+    print(f"ERROR: Failed to import run_analysis: {e}")
+    raise
+
+try:
     from __version__ import __version__
 except Exception as e:
-    # Fallback if import fails
+    print(f"WARNING: Failed to import version: {e}")
     __version__ = "unknown"
 
 
