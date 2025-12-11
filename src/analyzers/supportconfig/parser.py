@@ -103,7 +103,7 @@ class SupportconfigParser:
         
         Args:
             filename: Name of the .txt file
-            command: Command to search for (e.g., '/bin/uname -a')
+            command: Command to search for (e.g., '/bin/uname -a' or just 'uname')
             
         Returns:
             Command output or None if not found
@@ -115,8 +115,17 @@ class SupportconfigParser:
         sections = self.extract_sections(content)
         
         for section in sections:
-            if section['type'] == 'Command' and command in section['header']:
-                return section['content']
+            if section['type'] == 'Command':
+                # The command is in the content, prefixed with #
+                # Format: # /path/to/command args
+                # followed by the output
+                lines = section['content'].split('\n')
+                if lines and lines[0].startswith('#'):
+                    cmd_line = lines[0].strip('# ').strip()
+                    # Check if this is the command we're looking for
+                    if command in cmd_line or cmd_line.endswith(command):
+                        # Return everything after the command line
+                        return '\n'.join(lines[1:]).strip()
         
         return None
     

@@ -21,37 +21,63 @@ class SupportconfigSystemInfo:
         self.root_path = root_path
     
     def get_os_info(self) -> Dict[str, str]:
-        """Extract OS information from basic-environment.txt and etc.txt."""
+        """Extract OS information from basic-environment.txt."""
         os_info = {}
         
-        # Try to get from etc.txt (/etc/os-release)
-        os_release = self.parser.get_file_listing('etc.txt', '/etc/os-release')
-        if os_release:
-            for line in os_release.split('\n'):
-                line = line.strip()
-                if '=' in line and not line.startswith('#'):
-                    key, value = line.split('=', 1)
-                    # Remove quotes
-                    value = value.strip('"').strip("'")
-                    os_info[key] = value
-        
         # Get uname info from basic-environment.txt
+        uname_output = self.parser.get_command_output('basic-environment.txt', '/bin/uname -a')
+        if uname_output:
+            os_info['uname'] = uname_output.strip()
+            # Parse kernel version from uname
+            parts = uname_output.split()
+            if len(parts) >= 3:
+                os_info['kernel'] = parts[2]
+        
+        # Look for OS identification strings in basic-environment.txt
         content = self.parser.read_file('basic-environment.txt')
         if content:
-            uname_output = self.parser.get_command_output('basic-environment.txt', '/bin/uname -a')
-            if uname_output:
-                os_info['uname'] = uname_output.strip()
+            for line in content.split('\n'):
+                line = line.strip()
+                # Look for PRETTY_NAME, ID, VERSION_ID, etc.
+                if '=' in line and not line.startswith('#'):
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip().strip('"').strip("'")
+                    
+                    # Common os-release keys
+                    if key in ['NAME', 'ID', 'ID_LIKE', 'VERSION', 'VERSION_ID', 
+                               'PRETTY_NAME', 'CPE_NAME', 'HOME_URL', 'BUG_REPORT_URL']:
+                        os_info[key] = value
+                # Look for SUSE/Linux version strings
+                elif 'SUSE Linux Enterprise' in line or 'openSUSE' in line:
+                    if 'NAME' not in os_info:
+                        os_info['NAME'] = line.strip()
+        
+        # If still no NAME, try to extract from uname or use generic
+        if 'NAME' not in os_info and 'uname' in os_info:
+            if 'sles' in os_info['uname'].lower() or 'suse' in os_info['uname'].lower():
+                os_info['NAME'] = 'SUSE Linux Enterprise Server'
+                os_info['ID'] = 'sles'
         
         return os_info
     
     def get_hostname(self) -> str:
-        """Extract hostname."""
+        """Extract hostname from uname output."""
+        uname_output = self.parser.get_command_output('basic-environment.txt', '/bin/uname -a')
+        if uname_output:
+            # Hostname is typically the second field in uname -a
+            parts = uname_output.split()
+            if len(parts) >= 2:
+                return parts[1]
+        
+        # Fallback: try to find hostname command output
         content = self.parser.read_file('basic-environment.txt')
         if content:
             sections = self.parser.extract_sections(content)
             for section in sections:
                 if 'hostname' in section['header'].lower():
                     return section['content'].strip()
+        
         return "Unknown"
     
     def get_kernel_info(self) -> Dict[str, str]:
@@ -121,32 +147,39 @@ class SupportconfigSystemInfo:
         return cpu_info
     
     def get_memory_info(self) -> Dict[str, Any]:
-        """Extract memory information from memory.txt and hardware.txt."""
+        """Extract memory information from memory.txt or hardware.txt."""
         memory_info = {}
         
-        # Try memory.txt first
-        meminfo = self.parser.get_file_listing('memory.txt', '/proc/meminfo')
-        if not meminfo:
-            # Fallback to hardware.txt
-            meminfo = self.parser.get_file_listing('hardware.txt', '/proc/meminfo')
-        
-        if meminfo:
-            for line in meminfo.split('\n'):
-                if ':' in line:
-                    key, value = line.split(':', 1)
-                    key = key.strip()
-                    value = value.strip()
+        # Try memory.txt first - look for meminfo in Configuration File sections
+        for filename in ['memory.txt', 'hardware.txt']:
+            content = self.parser.read_file(filename)
+            if not content:
+                continue
+                
+            sections = self.parser.extract_sections(content)
+            for section in sections:
+                # Check for /proc/meminfo in Configuration File or File sections
+                if '/proc/meminfo' in section['header']:
+                    # Parse meminfo content
+                    for line in section['content'].split('\n'):
+                        if ':' in line:
+                            key, value = line.split(':', 1)
+                            key = key.strip()
+                            value = value.strip()
+                            
+                            if key == 'MemTotal':
+                                memory_info['total'] = value
+                            elif key == 'MemFree':
+                                memory_info['free'] = value
+                            elif key == 'MemAvailable':
+                                memory_info['available'] = value
+                            elif key == 'SwapTotal':
+                                memory_info['swap_total'] = value
+                            elif key == 'SwapFree':
+                                memory_info['swap_free'] = value
                     
-                    if key == 'MemTotal':
-                        memory_info['total'] = value
-                    elif key == 'MemFree':
-                        memory_info['free'] = value
-                    elif key == 'MemAvailable':
-                        memory_info['available'] = value
-                    elif key == 'SwapTotal':
-                        memory_info['swap_total'] = value
-                    elif key == 'SwapFree':
-                        memory_info['swap_free'] = value
+                    if memory_info:  # Found it, stop searching
+                        return memory_info
         
         return memory_info
     
