@@ -13,6 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2] - 2025-12-12
+
+### Added
+- Saved reports browser in the web UI with open/delete actions and a GitHub header link.
+- API endpoints to list and delete saved reports.
+- Dockerfile volumes and README instructions for persisting uploads/outputs.
+
+### Changed
+- Reports are no longer deleted after viewing; outputs persist for browsing.
+- Report viewer rewrites asset href/src for images (including favicon) to ensure icons load.
+- Home header title is plain text (no link) per UX request; GitHub icon uses inline SVG.
+
+### Fixed
+- Report discovery now searches nested token subfolders so saved reports display in the browser panel.
+
+---
+
+## [0.2.1] - 2025-12-11
+
+### Added
+- Container runtime reporting (Docker): parsing via `DockerCommandsAnalyzer` wired into both sosreport and supportconfig analyzers, surfaced in a new Containers subtab (docker version/info/ps/ps -a/stats/images/networks/volumes/inspect/events/journal/config).
+- CSP nonces for inline scripts in generated reports plus stricter response headers.
+
+### Changed
+- Jinja environment now auto-escapes HTML/XML templates for safer rendering.
+- Report serving paths resolved to prevent path traversal when fetching reports.
+
+### Fixed
+- Workflow triggers restricted to `push` on `main` only (build-on-main).
+
+---
+
 ## [0.2.0] - 2025-12-11
 
 ### Added
@@ -176,6 +208,7 @@ Future releases will include:
 
 ---
 
-[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/samatild/SOSParser/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/samatild/SOSParser/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/samatild/SOSParser/releases/tag/v0.1.0
