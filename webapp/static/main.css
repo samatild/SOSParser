@@ -202,6 +202,28 @@ main {
   transform: translateY(0);
 }
 
+.btn-secondary {
+  background: transparent;
+  color: var(--accent-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent-primary);
+  background: var(--bg-hover);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* Info Panel - Simplified */
 .info-panel {
   margin-top: 1.5rem;
@@ -299,6 +321,125 @@ main {
 .loading-subtext {
   color: var(--text-secondary);
   font-size: 0.8125rem;
+}
+
+.report-browser {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 340px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+.report-browser.active {
+  transform: translateX(0);
+}
+
+.browser-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.browser-header h3 {
+  margin: 0;
+  color: var(--accent-primary);
+}
+
+.browser-subtitle {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  margin: 0.15rem 0 0 0;
+}
+
+.browser-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 8500;
+}
+
+.icon-button {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
+.report-list {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.report-row {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.75rem;
+  background: var(--bg-tertiary);
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.report-info {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.report-token {
+  font-weight: 700;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.report-meta {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  margin-top: 0.25rem;
+}
+
+.report-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.btn-link.danger {
+  color: var(--error);
+}
+
+.browser-empty,
+.browser-loading,
+.browser-error {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
 }
 
 /* Responsive Design */

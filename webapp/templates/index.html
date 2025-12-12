@@ -17,6 +17,9 @@
               <p class="subtitle">Linux diagnostic file parser and analyzer</p>
               <p class="format-support">Supports SOSReport & Supportconfig formats</p>
             </div>
+            <div class="header-actions">
+              <button type="button" class="btn-secondary" id="browse-reports-btn">Saved Reports</button>
+            </div>
           </div>
         </div>
       </header>
@@ -80,6 +83,20 @@
       </div>
     </div>
 
+    <div id="report-browser" class="report-browser">
+      <div class="browser-header">
+        <div>
+          <h3>Saved Reports</h3>
+          <p class="browser-subtitle">Open or delete generated reports</p>
+        </div>
+        <button class="icon-button" id="close-browser-btn" aria-label="Close">✕</button>
+      </div>
+      <div id="report-list" class="report-list">
+        <p class="browser-empty">No reports found.</p>
+      </div>
+    </div>
+    <div id="browser-backdrop" class="browser-backdrop" style="display:none;"></div>
+
     <script>
       // Show loading overlay on form submit
       document.getElementById('analyze-form').addEventListener('submit', function() {
@@ -95,6 +112,96 @@
           display.textContent = 'Select sosreport file...';
         }
       });
+
+      // Report browser
+      const browseBtn = document.getElementById('browse-reports-btn');
+      const browser = document.getElementById('report-browser');
+      const backdrop = document.getElementById('browser-backdrop');
+      const closeBtn = document.getElementById('close-browser-btn');
+      const reportList = document.getElementById('report-list');
+
+      function closeBrowser() {
+        browser.classList.remove('active');
+        backdrop.style.display = 'none';
+      }
+
+      function openBrowser() {
+        browser.classList.add('active');
+        backdrop.style.display = 'block';
+        loadReports();
+      }
+
+      async function loadReports() {
+        reportList.innerHTML = '<p class="browser-loading">Loading...</p>';
+        try {
+          const res = await fetch('/api/reports');
+          if (!res.ok) throw new Error('Failed to load reports');
+          const data = await res.json();
+          renderReports(data.items || []);
+        } catch (err) {
+          reportList.innerHTML = '<p class="browser-error">Failed to load reports.</p>';
+        }
+      }
+
+      function renderReports(items) {
+        if (!items.length) {
+          reportList.innerHTML = '<p class="browser-empty">No reports found.</p>';
+          return;
+        }
+        const frag = document.createDocumentFragment();
+        items.forEach((item) => {
+          const name = (item.path || 'report.html').split('/')[0] || 'report';
+          const row = document.createElement('div');
+          row.className = 'report-row';
+
+          const info = document.createElement('div');
+          info.className = 'report-info';
+          const title = document.createElement('div');
+          title.className = 'report-token';
+          title.textContent = name;
+          const meta = document.createElement('div');
+          meta.className = 'report-meta';
+          const ts = item.modified ? new Date(item.modified).toLocaleString() : '';
+          const size = item.size ? ` · ${Math.max(1, Math.round(item.size / 1024))} KB` : '';
+          meta.textContent = `${item.path || 'report.html'}${ts ? ' · ' + ts : ''}${size}`;
+          info.appendChild(title);
+          info.appendChild(meta);
+
+          const actions = document.createElement('div');
+          actions.className = 'report-actions';
+
+          const openBtn = document.createElement('a');
+          openBtn.className = 'btn-link';
+          openBtn.href = item.url || `/view/${encodeURIComponent(item.token)}?path=${encodeURIComponent(item.path || 'report.html')}`;
+          openBtn.textContent = 'Open';
+          actions.appendChild(openBtn);
+
+          const delBtn = document.createElement('button');
+          delBtn.className = 'btn-link danger';
+          delBtn.textContent = 'Delete';
+          delBtn.addEventListener('click', async () => {
+            if (!confirm('Delete this report?')) return;
+            try {
+              const res = await fetch(`/api/reports/${encodeURIComponent(item.token)}`, { method: 'DELETE' });
+              if (!res.ok) throw new Error();
+              loadReports();
+            } catch (err) {
+              alert('Failed to delete report.');
+            }
+          });
+          actions.appendChild(delBtn);
+
+          row.appendChild(info);
+          row.appendChild(actions);
+          frag.appendChild(row);
+        });
+        reportList.innerHTML = '';
+        reportList.appendChild(frag);
+      }
+
+      browseBtn.addEventListener('click', openBrowser);
+      closeBtn.addEventListener('click', closeBrowser);
+      backdrop.addEventListener('click', closeBrowser);
     </script>
   </body>
 </html>
