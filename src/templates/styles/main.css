@@ -299,6 +299,15 @@ body {
   font-size: 0.8125rem;
 }
 
+.info-table th {
+  padding: 0.5rem 0.375rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+}
+
 .info-table td.label {
   color: var(--text-muted);
   font-weight: 600;
@@ -307,6 +316,15 @@ body {
 
 .info-table td.value {
   color: var(--text-primary);
+}
+
+.table-scroll {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.table-scroll .info-table {
+  min-width: 600px;
 }
 
 /* Pre/Code - Smaller */

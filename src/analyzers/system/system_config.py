@@ -2,6 +2,7 @@
 """System configuration analysis from sosreport"""
 
 from pathlib import Path
+from analyzers.docker import DockerCommandsAnalyzer
 from utils.logger import Logger
 
 
@@ -319,3 +320,9 @@ class SystemConfigAnalyzer:
             data['sudoers'] = sudoers.read_text()
         
         return data
+
+    def analyze_containers(self, base_path: Path) -> dict:
+        """Analyze container runtime information (docker/podman)."""
+        Logger.debug("Analyzing container runtime information")
+        analyzer = DockerCommandsAnalyzer(base_path)
+        return analyzer.analyze()
