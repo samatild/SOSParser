@@ -300,6 +300,7 @@ def create_app() -> Flask:
         html = html.replace("href=\"styles/", "href=\"/report-assets/styles/")
         html = html.replace("src=\"scripts/", "src=\"/report-assets/scripts/")
         html = html.replace("src=\"images/", "src=\"/report-assets/images/")
+        html = html.replace("href=\"images/", "href=\"/report-assets/images/")
 
         # Cleanup uploads after response (keep outputs persistent)
         uploads_token_dir = Path(app.config["UPLOAD_FOLDER"]) / secure_filename(token)

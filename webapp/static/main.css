@@ -76,6 +76,14 @@ body {
   letter-spacing: -0.5px;
 }
 
+.title-section {
+  text-decoration: none;
+}
+
+.title-section:hover h1 {
+  color: var(--accent-secondary);
+}
+
 .subtitle {
   color: var(--text-secondary);
   font-size: 0.875rem;
@@ -222,6 +230,32 @@ main {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.icon-link:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--bg-hover);
+}
+
+.icon-svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 /* Info Panel - Simplified */
