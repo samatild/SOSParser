@@ -3,7 +3,7 @@ name: Block Main Branch PRs
 on:
   pull_request:
     branches:
-      - main
+      - dev
 
 jobs:
   check-source-branch:
