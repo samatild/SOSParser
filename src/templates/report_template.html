@@ -55,6 +55,28 @@
         </nav>
 
         <main class="content">
+            {% macro render_docker_table(table) -%}
+                {% if table.headers %}
+                <div class="table-scroll">
+                    <table class="info-table">
+                        <tr>
+                            {% for header in table.headers %}
+                            <th class="label">{{ header }}</th>
+                            {% endfor %}
+                        </tr>
+                        {% for row in table.rows %}
+                        <tr>
+                            {% for cell in row %}
+                            <td class="value">{{ cell }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+                {% elif table.raw %}
+                <pre>{{ table.raw }}</pre>
+                {% endif %}
+            {%- endmacro %}
             <!-- Summary Tab -->
             <section id="summary" class="tab-content active">
                 <h2>System Summary</h2>
@@ -225,6 +247,7 @@
                     <button class="subtab-button" data-subtab="security">Security</button>
                     <button class="subtab-button" data-subtab="packages">Packages</button>
                     <button class="subtab-button" data-subtab="kernel-modules">Kernel</button>
+                    <button class="subtab-button" data-subtab="containers">Containers</button>
                     <button class="subtab-button" data-subtab="users-groups">Users</button>
                 </nav>
 
@@ -684,6 +707,155 @@
                         {% endif %}
                     {% else %}
                     <p>No kernel module data available</p>
+                    {% endif %}
+                </div>
+
+                <div id="containers" class="subtab-content">
+                    <h3>Containers (Docker)</h3>
+                    {% set docker = system_config.containers %}
+                    {% if docker %}
+                        {% if docker.version %}
+                        <h4>docker version</h4>
+                        <pre>{{ docker.version }}</pre>
+                        {% endif %}
+                        {% if docker.info %}
+                        <h4>docker info</h4>
+                        <pre>{{ docker.info }}</pre>
+                        {% endif %}
+                        {% if docker.ps %}
+                        <h4>Running Containers (docker ps)</h4>
+                        {{ render_docker_table(docker.ps) }}
+                        {% endif %}
+                        {% if docker.ps_all %}
+                        <h4>All Containers (docker ps -a)</h4>
+                        {{ render_docker_table(docker.ps_all) }}
+                        {% endif %}
+                        {% if docker.stats %}
+                        <h4>docker stats --no-stream</h4>
+                        {{ render_docker_table(docker.stats) }}
+                        {% endif %}
+                        {% if docker.images %}
+                        <h4>Images (docker images)</h4>
+                        {{ render_docker_table(docker.images) }}
+                        {% endif %}
+                        {% if docker.image_inspect and docker.image_inspect.entries %}
+                        <h4>Image Inspect Summary</h4>
+                        <div class="table-scroll">
+                            <table class="info-table">
+                                <tr>
+                                    <th class="label">Repo Tags</th>
+                                    <th class="label">ID</th>
+                                    <th class="label">Size</th>
+                                    <th class="label">Created</th>
+                                    <th class="label">Architecture</th>
+                                    <th class="label">OS</th>
+                                </tr>
+                                {% for img in docker.image_inspect.entries %}
+                                <tr>
+                                    <td class="value">{{ img.repo_tags or '' }}</td>
+                                    <td class="value">{{ img.id or '' }}</td>
+                                    <td class="value">{{ img.size or '' }}</td>
+                                    <td class="value">{{ img.created or '' }}</td>
+                                    <td class="value">{{ img.architecture or '' }}</td>
+                                    <td class="value">{{ img.os or '' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </table>
+                        </div>
+                        {% endif %}
+                        {% if docker.image_inspect and docker.image_inspect.raw %}
+                        <h4>Image Inspect (raw)</h4>
+                        {% for img in docker.image_inspect.raw %}
+                        <h5>{{ img.source }}</h5>
+                        <pre>{{ img.raw }}</pre>
+                        {% endfor %}
+                        {% endif %}
+                        {% if docker.networks %}
+                        <h4>Networks (docker network ls)</h4>
+                        {{ render_docker_table(docker.networks) }}
+                        {% endif %}
+                        {% if docker.network_inspect %}
+                        <h4>Network Inspection</h4>
+                        {% for net in docker.network_inspect %}
+                            {% if net.raw %}
+                            <h5>{{ net.name }}</h5>
+                            <pre>{{ net.raw }}</pre>
+                            {% else %}
+                            <table class="info-table">
+                                <tr><td class="label">Name</td><td class="value">{{ net.name }}</td></tr>
+                                {% if net.id %}<tr><td class="label">ID</td><td class="value">{{ net.id }}</td></tr>{% endif %}
+                                {% if net.driver %}<tr><td class="label">Driver</td><td class="value">{{ net.driver }}</td></tr>{% endif %}
+                                {% if net.scope %}<tr><td class="label">Scope</td><td class="value">{{ net.scope }}</td></tr>{% endif %}
+                                {% if net.subnet %}<tr><td class="label">Subnet</td><td class="value">{{ net.subnet }}</td></tr>{% endif %}
+                                {% if net.gateway %}<tr><td class="label">Gateway</td><td class="value">{{ net.gateway }}</td></tr>{% endif %}
+                                {% if net.containers is not none %}<tr><td class="label">Attached Containers</td><td class="value">{{ net.containers }}</td></tr>{% endif %}
+                                {% if net.internal is not none %}<tr><td class="label">Internal</td><td class="value">{{ net.internal }}</td></tr>{% endif %}
+                                {% if net.attachable is not none %}<tr><td class="label">Attachable</td><td class="value">{{ net.attachable }}</td></tr>{% endif %}
+                            </table>
+                            {% endif %}
+                        {% endfor %}
+                        {% endif %}
+                        {% if docker.volumes %}
+                        <h4>Volumes (docker volume ls)</h4>
+                        {{ render_docker_table(docker.volumes) }}
+                        {% endif %}
+                        {% if docker.container_inspect and docker.container_inspect.entries %}
+                        <h4>Container Inspect Summary</h4>
+                        <div class="table-scroll">
+                            <table class="info-table">
+                                <tr>
+                                    <th class="label">Name</th>
+                                    <th class="label">Image</th>
+                                    <th class="label">State</th>
+                                    <th class="label">IP</th>
+                                    <th class="label">Created</th>
+                                    <th class="label">Started</th>
+                                    <th class="label">Finished</th>
+                                    <th class="label">Restarts</th>
+                                    <th class="label">Ports</th>
+                                    <th class="label">ID</th>
+                                </tr>
+                                {% for entry in docker.container_inspect.entries %}
+                                <tr>
+                                    <td class="value">{{ entry.name or '' }}</td>
+                                    <td class="value">{{ entry.image or '' }}</td>
+                                    <td class="value">
+                                        {{ entry.state or '' }}
+                                        {% if entry.running is not none %}(running={{ entry.running }}){% endif %}
+                                    </td>
+                                    <td class="value">{{ entry.ip_address or '' }}</td>
+                                    <td class="value">{{ entry.created or '' }}</td>
+                                    <td class="value">{{ entry.started_at or '' }}</td>
+                                    <td class="value">{{ entry.finished_at or '' }}</td>
+                                    <td class="value">{{ entry.restart_count or '' }}</td>
+                                    <td class="value">{{ entry.ports or '' }}</td>
+                                    <td class="value">{{ entry.id or '' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </table>
+                        </div>
+                        {% endif %}
+                        {% if docker.container_inspect and docker.container_inspect.raw %}
+                        <h4>Container Inspect (raw)</h4>
+                        {% for entry in docker.container_inspect.raw %}
+                        <h5>{{ entry.source }}</h5>
+                        <pre>{{ entry.raw }}</pre>
+                        {% endfor %}
+                        {% endif %}
+                        {% if docker.events %}
+                        <h4>docker events</h4>
+                        <pre>{{ docker.events }}</pre>
+                        {% endif %}
+                        {% if docker.journal %}
+                        <h4>Docker Service Logs (journalctl)</h4>
+                        <pre>{{ docker.journal }}</pre>
+                        {% endif %}
+                        {% if docker.config_listing %}
+                        <h4>/etc/docker Listing</h4>
+                        <pre>{{ docker.config_listing }}</pre>
+                        {% endif %}
+                    {% else %}
+                    <p>No container runtime data available</p>
                     {% endif %}
                 </div>
 

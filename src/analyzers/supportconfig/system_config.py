@@ -9,6 +9,7 @@ Analyzes system configuration from supportconfig format including:
 
 from typing import Dict, Any, List, Optional
 from pathlib import Path
+from analyzers.docker import DockerCommandsAnalyzer
 from .parser import SupportconfigParser
 
 
@@ -31,6 +32,7 @@ class SupportconfigSystemConfig:
             'security': self.get_security_config(),
             'packages': self.get_packages_config(),
             'kernel_modules': self.get_kernel_modules_config(),
+            'containers': self.get_docker_config(),
         }
     
     def get_boot_config(self) -> Dict[str, Any]:
@@ -671,6 +673,13 @@ class SupportconfigSystemConfig:
                     data['sysctl_files'][header] = body
 
         return data
+
+    def get_docker_config(self) -> Dict[str, Any]:
+        """
+        Parse docker information from sos_commands/docker when present.
+        """
+        analyzer = DockerCommandsAnalyzer(self.root_path)
+        return analyzer.analyze()
 
     def get_general_config(self) -> Dict[str, Any]:
         """
