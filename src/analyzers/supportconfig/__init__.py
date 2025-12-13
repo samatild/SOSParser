@@ -5,6 +5,7 @@ from .system_config import SupportconfigSystemConfig
 from .network import SupportconfigNetwork
 from .filesystem import SupportconfigFilesystem
 from .cloud import SupportconfigCloud
+from .logs import SupportconfigLogs
 
 __all__ = [
     'SupportconfigSystemInfo',
@@ -12,4 +13,5 @@ __all__ = [
     'SupportconfigNetwork',
     'SupportconfigFilesystem',
     'SupportconfigCloud',
+    'SupportconfigLogs',
 ]

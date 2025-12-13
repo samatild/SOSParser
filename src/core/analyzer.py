@@ -33,6 +33,7 @@ from analyzers.supportconfig.system_config import SupportconfigSystemConfig
 from analyzers.supportconfig.network import SupportconfigNetwork
 from analyzers.supportconfig.filesystem import SupportconfigFilesystem
 from analyzers.supportconfig.cloud import SupportconfigCloud
+from analyzers.supportconfig.logs import SupportconfigLogs
 
 from reporting.report_generator import (
     prepare_report_data,
@@ -134,8 +135,7 @@ class SOSReportAnalyzer:
         net_analyzer = SupportconfigNetwork(extracted_dir)
         fs_analyzer = SupportconfigFilesystem(extracted_dir)
         cloud_analyzer = SupportconfigCloud(extracted_dir)
-        from analyzers.supportconfig.parser import SupportconfigParser
-        log_parser = SupportconfigParser(extracted_dir)
+        logs_analyzer = SupportconfigLogs(extracted_dir)
         
         # Get system information
         hostname = sys_analyzer.get_hostname()
@@ -170,43 +170,9 @@ class SOSReportAnalyzer:
         
         # Analyze network
         network = net_analyzer.analyze()
-        
-        # Logs
-        system_logs = {}
-        messages = log_parser.read_file('messages.txt')
-        if messages:
-            system_logs['messages'] = messages
-        messages_config = log_parser.read_file('messages_config.txt')
-        if messages_config:
-            system_logs['syslog'] = messages_config
-        messages_localwarn = log_parser.read_file('messages_localwarn.txt')
-        if messages_localwarn and 'syslog' not in system_logs:
-            system_logs['syslog'] = messages_localwarn
 
-        kernel_logs = {}
-        dmesg = log_parser.get_command_output('boot.txt', '/bin/dmesg -T')
-        if dmesg:
-            kernel_logs['dmesg'] = dmesg
-
-        auth_logs = {}
-        security_audit = log_parser.read_file('security-audit.txt')
-        if security_audit:
-            sections = log_parser.extract_sections(security_audit)
-            for section in sections:
-                header = section.get('header', '')
-                content = section.get('content', '')
-                # Check header or first line of content for audit log path
-                first_line = content.split('\n', 1)[0] if content else ''
-                if '/var/log/audit/audit.log' in header or '/var/log/audit/audit.log' in first_line:
-                    auth_logs['audit_log'] = content.strip()
-                    break
-
-        logs = {
-            'system': system_logs,
-            'kernel': kernel_logs,
-            'auth': auth_logs,
-            'services': {},
-        }
+        # Analyze logs
+        logs = logs_analyzer.analyze()
 
         # Analyze cloud information
         cloud = cloud_analyzer.analyze()
