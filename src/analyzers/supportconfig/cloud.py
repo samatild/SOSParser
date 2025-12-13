@@ -44,12 +44,17 @@ class SupportconfigCloud:
         cloud['cloud_init'] = {}
         if cloud_data.get('instanceinit'):
             cloud['cloud_init']['cloud_status'] = cloud_data['instanceinit']
-        cloud['azure'] = {
-            'metadata': cloud_data.get('metadata'),
-            'hosts': cloud_data.get('hosts'),
-            'cloudregister': cloud_data.get('cloudregister'),
-            'credentials': cloud_data.get('credentials'),
-            'osrelease': cloud_data.get('osrelease'),
-        }
+
+        # Add provider-specific data
+        if provider == 'azure':
+            cloud['azure'] = {
+                'metadata': cloud_data.get('metadata'),
+                'hosts': cloud_data.get('hosts'),
+                'cloudregister': cloud_data.get('cloudregister'),
+                'credentials': cloud_data.get('credentials'),
+                'osrelease': cloud_data.get('osrelease'),
+            }
+        else:
+            cloud['azure'] = {}
 
         return cloud
