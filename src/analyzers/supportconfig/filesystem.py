@@ -12,21 +12,21 @@ from .filesystem_analyzers.filesystem_types import FilesystemTypesAnalyzer
 
 class SupportconfigFilesystem:
     """Analyzer for supportconfig filesystem information."""
-
+    
     def __init__(self, root_path: Path):
         """
         Initialize filesystem analyzer.
-
+        
         Args:
             root_path: Path to extracted supportconfig directory
         """
         self.root_path = root_path
         self.parser = SupportconfigParser(root_path)
-
+    
     def analyze(self) -> Dict[str, Any]:
         """
         Perform complete filesystem analysis.
-
+        
         Returns:
             Dictionary with filesystem information
         """
