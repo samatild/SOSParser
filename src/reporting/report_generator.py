@@ -48,6 +48,7 @@ def prepare_report_data(
     format_scenario_results: callable,
     execution_timestamp: str,
     diagnostic_timestamp: str = None,
+    enhanced_summary: Dict[str, Any] = None,
 ) -> Dict[str, Any]:
     """
     Prepare the report data dictionary.
@@ -87,6 +88,8 @@ def prepare_report_data(
             'disk_info': disk_info,
             'system_load': system_load,
             'dmi_info': dmi_info,
+            # Enhanced summary data (for supportconfig)
+            **(enhanced_summary or {}),
         },
         'system_config': system_config,
         'filesystem': filesystem,
