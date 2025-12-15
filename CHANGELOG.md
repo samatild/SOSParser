@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.4] - 2025-12-15
+
+### Added
+- **Enhanced Summary Pages**: Rich overview pages for both supportconfig and SOSReport formats featuring system resources (disk usage, memory, virtual memory), top CPU/memory consumers, CPU security vulnerabilities, and kernel status information
+- **Logo Logic Enhancement**: Improved distribution logo detection and display logic with support for additional Linux distributions
+
+### Refactored
+- **Summary Analyzer Architecture**: Extracted summary data extraction logic into dedicated `SupportconfigSummaryAnalyzer` and `SOSReportSummaryAnalyzer` classes for better separation of concerns and maintainability
+- **Modular Analyzer Structure**: Reorganized analyzer components into focused, format-specific modules improving code organization and testability
+
+---
+
 ## [0.2.3] - 2025-12-13
 
 ### Added
@@ -217,7 +229,8 @@ Future releases will include:
 
 ---
 
-[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/samatild/SOSParser/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/samatild/SOSParser/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/samatild/SOSParser/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/samatild/SOSParser/compare/v0.2.0...v0.2.1

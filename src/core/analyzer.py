@@ -8,18 +8,8 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 # SOSReport analyzers
-from analyzers.system.system_info import (
-    get_hostname,
-    get_os_release,
-    get_kernel_info,
-    get_uptime,
-    get_execution_timestamp,
-    get_cpu_info,
-    get_memory_info,
-    get_disk_info,
-    get_system_load,
-    get_dmidecode_info
-)
+from analyzers.system.summary import SOSReportSummaryAnalyzer
+from analyzers.system.system_info import get_execution_timestamp
 from analyzers.system.system_config import SystemConfigAnalyzer
 from analyzers.filesystem.filesystem import FilesystemAnalyzer
 from analyzers.network.network import NetworkAnalyzer
@@ -28,7 +18,7 @@ from analyzers.cloud.cloud import CloudAnalyzer
 from analyzers.scenarios.scenario_analyzer import BaseScenarioAnalyzer
 
 # Supportconfig analyzers
-from analyzers.supportconfig.system_info import SupportconfigSystemInfo
+from analyzers.supportconfig.summary import SupportconfigSummaryAnalyzer
 from analyzers.supportconfig.system_config import SupportconfigSystemConfig
 from analyzers.supportconfig.network import SupportconfigNetwork
 from analyzers.supportconfig.filesystem import SupportconfigFilesystem
@@ -130,23 +120,26 @@ class SOSReportAnalyzer:
         Logger.info("Analyzing supportconfig format")
         
         # Initialize supportconfig analyzers
-        sys_analyzer = SupportconfigSystemInfo(extracted_dir)
         config_analyzer = SupportconfigSystemConfig(extracted_dir)
         net_analyzer = SupportconfigNetwork(extracted_dir)
         fs_analyzer = SupportconfigFilesystem(extracted_dir)
         cloud_analyzer = SupportconfigCloud(extracted_dir)
         logs_analyzer = SupportconfigLogs(extracted_dir)
         
-        # Get system information
-        hostname = sys_analyzer.get_hostname()
-        os_info = sys_analyzer.get_os_info()
-        kernel_info = sys_analyzer.get_kernel_info()
-        uptime = sys_analyzer.get_uptime()
-        cpu_info = sys_analyzer.get_cpu_info()
-        memory_info = sys_analyzer.get_memory_info()
-        disk_info = sys_analyzer.get_disk_info()
-        system_load = sys_analyzer.get_system_load()
-        dmi_info = sys_analyzer.get_dmi_info()
+        # Get complete summary data using dedicated summary analyzer
+        summary_analyzer = SupportconfigSummaryAnalyzer(extracted_dir)
+        summary = summary_analyzer.get_full_summary()
+
+        # Extract individual fields for backward compatibility
+        hostname = summary['hostname']
+        os_info = summary['os_info']
+        kernel_info = summary['kernel_info']
+        uptime = summary['uptime']
+        cpu_info = summary['cpu_info']
+        memory_info = summary['memory_info']
+        disk_info = summary['disk_info']
+        system_load = summary['system_load']
+        dmi_info = summary['dmi_info']
         
         # Get system configuration
         Logger.debug("Analyzing system configuration (supportconfig)")
@@ -177,8 +170,10 @@ class SOSReportAnalyzer:
         # Analyze cloud information
         cloud = cloud_analyzer.analyze()
         
-        return (hostname, os_info, kernel_info, uptime, cpu_info, memory_info, 
-                disk_info, system_load, dmi_info, system_config, filesystem, network, logs, cloud)
+        # Construct enhanced summary for supportconfig
+        # Summary is already populated by the summary analyzer
+
+        return (summary, system_config, filesystem, network, logs, cloud)
     
     def generate_report(self):
         """Generate the analysis report"""
@@ -211,17 +206,25 @@ class SOSReportAnalyzer:
             # Route to appropriate analyzer based on format
             if format_type == 'sosreport':
                 Logger.debug("Using SOSReport analyzers")
-                # Get system information
+                # Get complete summary data using dedicated summary analyzer
                 Logger.debug("Getting system information.")
-                hostname = get_hostname(extracted_dir)
-                os_info = get_os_release(extracted_dir)
-                kernel_info = get_kernel_info(extracted_dir)
-                uptime = get_uptime(extracted_dir)
-                cpu_info = get_cpu_info(extracted_dir)
-                memory_info = get_memory_info(extracted_dir)
-                disk_info = get_disk_info(extracted_dir)
-                system_load = get_system_load(extracted_dir)
-                dmi_info = get_dmidecode_info(extracted_dir)
+                summary_analyzer = SOSReportSummaryAnalyzer(extracted_dir)
+                summary = summary_analyzer.get_full_summary()
+
+                # Extract individual fields for backward compatibility
+                hostname = summary['hostname']
+                os_info = summary['os_info']
+                kernel_info = summary['kernel_info']
+                uptime = summary['uptime']
+                cpu_info = summary['cpu_info']
+                memory_info = summary['memory_info']
+                disk_info = summary['disk_info']
+                system_load = summary['system_load']
+                dmi_info = summary['dmi_info']
+
+                # Enhanced summary data is already included in summary object
+                system_resources = summary['system_resources']
+                top_processes = summary['top_processes']
                 
                 # Analyze system configuration
                 Logger.debug("Analyzing system configuration.")
@@ -294,10 +297,19 @@ class SOSReportAnalyzer:
                     
             elif format_type == 'supportconfig':
                 Logger.debug("Using Supportconfig analyzers")
-                (hostname, os_info, kernel_info, uptime, cpu_info, memory_info, 
-                 disk_info, system_load, dmi_info, system_config, filesystem, 
-                 network, logs, cloud) = self.analyze_supportconfig(extracted_dir)
-            
+                (summary, system_config, filesystem, network, logs, cloud) = self.analyze_supportconfig(extracted_dir)
+
+                # Extract individual fields from summary for compatibility
+                hostname = summary['hostname']
+                os_info = summary['os_info']
+                kernel_info = summary['kernel_info']
+                uptime = summary['uptime']
+                cpu_info = summary['cpu_info']
+                memory_info = summary['memory_info']
+                disk_info = summary['disk_info']
+                system_load = summary['system_load']
+                dmi_info = summary['dmi_info']
+
             # Analyze scenarios (optional, can be disabled)
             Logger.debug("Analyzing scenarios.")
             scenario_results = []
@@ -307,12 +319,29 @@ class SOSReportAnalyzer:
             #     if results:
             #         Logger.debug(f"Scenario {analyzer.scenario_config_path} found {len(results)} results.")
             #         scenario_results.extend(results)
-            
+
             # Generate execution timestamp
             execution_timestamp = get_execution_timestamp()
-            
+
             # Prepare report data
             Logger.debug("Preparing report data for template.")
+
+            # Enhanced summary data for both supportconfig and sosreport
+            enhanced_summary = None
+            if format_type == 'supportconfig':
+                enhanced_summary = {
+                    'cpu_vulnerabilities': summary.get('cpu_vulnerabilities', {}),
+                    'kernel_tainted': summary.get('kernel_tainted', ''),
+                    'supportconfig_info': summary.get('supportconfig_info', {}),
+                    'top_processes': summary.get('top_processes', {'cpu': [], 'memory': []}),
+                    'system_resources': summary.get('system_resources', {}),
+                }
+            elif format_type == 'sosreport':
+                enhanced_summary = {
+                    'top_processes': summary.get('top_processes', {'cpu': [], 'memory': []}),
+                    'system_resources': summary.get('system_resources', {}),
+                }
+
             report_data = prepare_report_data(
                 os_info=os_info,
                 hostname=hostname,
@@ -334,6 +363,7 @@ class SOSReportAnalyzer:
                 ),
                 execution_timestamp=execution_timestamp,
                 diagnostic_timestamp=diagnostic_timestamp,
+                enhanced_summary=enhanced_summary,
             )
             
             # Generate the report

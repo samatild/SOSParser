@@ -247,3 +247,133 @@ class SupportconfigSystemInfo:
                 load_info['15min'] = match.group(3)
         
         return load_info
+
+    def get_cpu_vulnerabilities(self) -> Dict[str, Any]:
+        """Extract CPU vulnerabilities status from basic-health-check.txt."""
+        vuln_info = {}
+
+        content = self.parser.read_file('basic-health-check.txt')
+        if content:
+            lines = content.split('\n')
+
+            for line in lines:
+                line = line.strip()
+                if '/sys/devices/system/cpu/vulnerabilities/' in line and ':' in line:
+                    # Extract vulnerability name and status
+                    parts = line.split('/vulnerabilities/')
+                    if len(parts) == 2:
+                        vuln_path = parts[1]
+                        if ':' in vuln_path:
+                            vuln_name, vuln_status = vuln_path.split(':', 1)
+                            vuln_name = vuln_name.strip()
+                            vuln_status = vuln_status.strip()
+                            vuln_info[vuln_name] = vuln_status
+
+        return vuln_info
+
+    def get_kernel_tainted_status(self) -> str:
+        """Extract kernel tainted status from basic-health-check.txt."""
+        content = self.parser.read_file('basic-health-check.txt')
+        if content:
+            for line in content.split('\n'):
+                if 'Kernel Status --' in line:
+                    if 'Not Tainted' in line:
+                        return 'Not Tainted'
+                    elif 'Tainted' in line:
+                        return 'Tainted'
+        return 'Unknown'
+
+    def get_supportconfig_info(self) -> Dict[str, str]:
+        """Extract supportconfig metadata from basic-environment.txt."""
+        info = {}
+
+        content = self.parser.read_file('basic-environment.txt')
+        if content:
+            lines = content.split('\n')
+            for line in lines[:10]:  # Check first 10 lines for metadata
+                line = line.strip()
+                if 'Script Version:' in line:
+                    info['script_version'] = line.split('Script Version:')[-1].strip()
+                elif 'Library Version:' in line:
+                    info['library_version'] = line.split('Library Version:')[-1].strip()
+                elif 'Script Date:' in line:
+                    info['script_date'] = line.split('Script Date:')[-1].strip()
+
+        return info
+
+    def get_top_processes(self) -> Dict[str, Any]:
+        """Extract top CPU and memory processes from basic-health-check.txt."""
+        processes = {'cpu': [], 'memory': []}
+
+        content = self.parser.read_file('basic-health-check.txt')
+        if content:
+            lines = content.split('\n')
+            current_section = None
+
+            for line in lines:
+                line = line.strip()
+                if 'Top 10 CPU Processes' in line:
+                    current_section = 'cpu'
+                    continue
+                elif 'Top 10 Memory Processes' in line:
+                    current_section = 'memory'
+                    continue
+                elif line.startswith('%CPU') and current_section == 'cpu':
+                    # Skip header
+                    continue
+                elif line.startswith('%MEM') and current_section == 'memory':
+                    # Skip header
+                    continue
+                elif current_section and line and not line.startswith('---') and not line.startswith('#'):
+                    # Process line - should have at least 4 parts: pct, pid, user, cmd
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        try:
+                            pct = float(parts[0])
+                            pid = parts[1]
+                            user = parts[2]
+                            cmd = ' '.join(parts[3:])
+
+                            if current_section == 'cpu':
+                                processes['cpu'].append({
+                                    'cpu_pct': pct,
+                                    'pid': pid,
+                                    'user': user,
+                                    'cmd': cmd
+                                })
+                            elif current_section == 'memory':
+                                processes['memory'].append({
+                                    'mem_pct': pct,
+                                    'pid': pid,
+                                    'user': user,
+                                    'cmd': cmd
+                                })
+                        except (ValueError, IndexError):
+                            # Skip lines that don't parse correctly
+                            continue
+                elif current_section and not line:
+                    # Empty line might indicate end of section
+                    current_section = None
+
+        return processes
+
+    def get_system_resources(self) -> Dict[str, str]:
+        """Extract system resource information from basic-health-check.txt."""
+        resources = {}
+
+        # Extract df -h output
+        df_output = self.parser.get_command_output('basic-health-check.txt', '/bin/df -h')
+        if df_output:
+            resources['df_h'] = df_output
+
+        # Extract vmstat output
+        vmstat_output = self.parser.get_command_output('basic-health-check.txt', '/usr/bin/vmstat')
+        if vmstat_output:
+            resources['vmstat'] = vmstat_output
+
+        # Extract free output
+        free_output = self.parser.get_command_output('basic-health-check.txt', '/usr/bin/free -k')
+        if free_output:
+            resources['free'] = free_output
+
+        return resources

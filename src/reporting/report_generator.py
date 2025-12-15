@@ -1,32 +1,47 @@
 #!/usr/bin/env python3
 """Report generation utilities for SOSReport analyzer"""
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 from analyzers.scenarios.scenario_analyzer import ScenarioResult
 from __version__ import __version__
+
+
+# Ordered tuples of (match tokens, logo path). Tokens are matched 
+# against lowercase os-release fields.
+OS_LOGO_MAP: List[Tuple[Tuple[str, ...], str]] = [
+    (('ubuntu',), 'images/ubuntulogo.svg'),
+    (('debian', 'raspbian'), 'images/debianlinuxlogo.png'),
+    (('rhel', 'red hat'), 'images/redhat_logo.png'),
+    (('centos',), 'images/centoslogo.png'),
+    (('rocky',), 'images/rockylinuxlogo.svg'),
+    (('alma', 'almalinux'), 'images/almalogo.png'),
+    (('amazon', 'amzn'), 'images/amazonlinuxlogo.png'),
+    (('fedora',), 'images/fedoralinuxlogo.png'),
+    (('suse', 'sles'), 'images/SUSE_Linux_GmbH_Logo.svg'),
+    (('oracle',), 'images/oraclelinux.svg'),
+    (('arch',), 'images/archlinuxlogo.svg'),
+]
+
+DEFAULT_OS_LOGO = 'images/tux.png'
 
 
 def get_os_logo(os_info: Dict[str, str]) -> str:
     """
     Determine the OS logo based on OS information.
-    Returns the relative path to the logo image.
+    Returns the relative path to the logo image or a Tux icon as default.
     """
-    os_id = os_info.get('ID', '').lower()
-    os_name = os_info.get('NAME', '').lower()
-    
-    # Map OS ID to logo file
-    if 'ubuntu' in os_id or 'ubuntu' in os_name:
-        return 'images/ubuntulogo.svg'
-    elif 'rhel' in os_id or 'red hat' in os_name:
-        return 'images/redhat_logo.png'
-    elif 'centos' in os_id or 'centos' in os_name:
-        return 'images/centoslogo.png'
-    elif 'suse' in os_id or 'suse' in os_name or 'sles' in os_id:
-        return 'images/SUSE_Linux_GmbH_Logo.svg'
-    elif 'oracle' in os_id or 'oracle' in os_name:
-        return 'images/oraclelinux.svg'
-    else:
-        return None
+    candidates = [
+        os_info.get('ID', ''),
+        os_info.get('NAME', ''),
+        os_info.get('PRETTY_NAME', ''),
+        os_info.get('ID_LIKE', ''),
+    ]
+    fields = [value.lower() for value in candidates if value]
+    for tokens, logo in OS_LOGO_MAP:
+        for field in fields:
+            if any(token in field for token in tokens):
+                return logo
+    return DEFAULT_OS_LOGO
 
 
 def prepare_report_data(
@@ -48,6 +63,7 @@ def prepare_report_data(
     format_scenario_results: callable,
     execution_timestamp: str,
     diagnostic_timestamp: str = None,
+    enhanced_summary: Dict[str, Any] = None,
 ) -> Dict[str, Any]:
     """
     Prepare the report data dictionary.
@@ -87,6 +103,8 @@ def prepare_report_data(
             'disk_info': disk_info,
             'system_load': system_load,
             'dmi_info': dmi_info,
+            # Enhanced summary data (for supportconfig)
+            **(enhanced_summary or {}),
         },
         'system_config': system_config,
         'filesystem': filesystem,

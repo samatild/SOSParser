@@ -255,3 +255,88 @@ def get_dmidecode_info(base_path: Path) -> dict:
     except Exception as e:
         Logger.warning(f"Failed to get dmidecode info: {e}")
         return {}
+
+
+def get_system_resources(base_path: Path) -> dict:
+    """Extract system resource information from sosreport"""
+    resources = {}
+
+    try:
+        # Extract df -h output
+        df_file = base_path / 'df'
+        if df_file.exists():
+            resources['df_h'] = df_file.read_text().strip()
+
+        # Extract vmstat output (raw proc file)
+        vmstat_file = base_path / 'proc' / 'vmstat'
+        if vmstat_file.exists():
+            vmstat_content = vmstat_file.read_text().strip()
+            # Format it nicely for display (show first 10 lines)
+            lines = vmstat_content.split('\n')[:10]
+            resources['vmstat'] = '\n'.join(lines)
+
+        # Extract free output
+        free_file = base_path / 'free'
+        if free_file.exists():
+            resources['free'] = free_file.read_text().strip()
+
+    except Exception as e:
+        Logger.warning(f"Failed to get system resources: {e}")
+
+    return resources
+
+
+def get_top_processes(base_path: Path) -> dict:
+    """Extract top CPU and memory consuming processes from sosreport"""
+    processes = {'cpu': [], 'memory': []}
+
+    try:
+        # Use the detailed ps command output
+        ps_file = base_path / 'sos_commands' / 'process' / 'ps_auxwwwm'
+        if ps_file.exists():
+            content = ps_file.read_text()
+            lines = content.split('\n')
+
+            for line in lines[1:]:  # Skip header
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Parse ps aux output: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
+                parts = line.split()
+                if len(parts) >= 11:  # Need at least USER, PID, %CPU, %MEM, and COMMAND
+                    try:
+                        user = parts[0]
+                        pid = parts[1]
+                        cpu_pct = float(parts[2])
+                        mem_pct = float(parts[3])
+                        # Command starts from part 10 (after VSZ RSS TTY STAT START TIME)
+                        cmd = ' '.join(parts[10:])
+
+                        # Add to CPU list
+                        processes['cpu'].append({
+                            'cpu_pct': cpu_pct,
+                            'pid': pid,
+                            'user': user,
+                            'cmd': cmd
+                        })
+
+                        # Add to memory list
+                        processes['memory'].append({
+                            'mem_pct': mem_pct,
+                            'pid': pid,
+                            'user': user,
+                            'cmd': cmd
+                        })
+
+                    except (ValueError, IndexError):
+                        continue
+
+    except Exception as e:
+        Logger.warning(f"Failed to get top processes: {e}")
+
+    # Sort by usage and take top 10
+    processes['cpu'] = sorted(processes['cpu'], key=lambda x: x['cpu_pct'], reverse=True)[:10]
+    processes['memory'] = sorted(processes['memory'], key=lambda x: x['mem_pct'], reverse=True)[:10]
+
+    return processes

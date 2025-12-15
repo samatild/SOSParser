@@ -226,10 +226,157 @@
                 </div>
                 {% endif %}
                 
-                {% if summary.disk_info.lsblk %}
+                {% if summary.system_resources %}
                 <div class="info-card" style="margin-top: 1rem;">
-                    <h3>Block Devices</h3>
-                    <pre>{{ summary.disk_info.lsblk }}</pre>
+                    <h3>System Resources</h3>
+
+                    {% if summary.system_resources.df_h %}
+                    <div style="margin-bottom: 1rem;">
+                        <h4>Disk Usage (df -h)</h4>
+                        <pre style="font-size: 0.9em;">{{ summary.system_resources.df_h }}</pre>
+                    </div>
+                    {% endif %}
+
+                    {% if summary.system_resources.vmstat or summary.system_resources.free %}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        {% if summary.system_resources.vmstat %}
+                        <div>
+                            <h4>Virtual Memory Statistics (vmstat)</h4>
+                            <pre style="font-size: 0.9em; min-height: 100px;">{{ summary.system_resources.vmstat }}</pre>
+                        </div>
+                        {% endif %}
+                        {% if summary.system_resources.free %}
+                        <div>
+                            <h4>Memory Usage (free -k)</h4>
+                            <pre style="font-size: 0.9em; min-height: 100px;">{{ summary.system_resources.free }}</pre>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if summary.top_processes.cpu or summary.top_processes.memory %}
+                <div class="info-card" style="margin-top: 1rem;">
+                    <h3>Top Processes</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem;">
+                        {% if summary.top_processes.cpu %}
+                        <div>
+                            <h4>Top CPU Consumers</h4>
+                            <div class="table-scroll">
+                                <table class="info-table">
+                                    <tr>
+                                        <th class="label">%CPU</th>
+                                        <th class="label">PID</th>
+                                        <th class="label">User</th>
+                                        <th class="label">Command</th>
+                                    </tr>
+                                    {% for proc in summary.top_processes.cpu[:10] %}
+                                    <tr>
+                                        <td class="value">{{ proc.cpu_pct }}%</td>
+                                        <td class="value">{{ proc.pid }}</td>
+                                        <td class="value">{{ proc.user }}</td>
+                                        <td class="value">{{ proc.cmd | truncate(40) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if summary.top_processes.memory %}
+                        <div>
+                            <h4>Top Memory Consumers</h4>
+                            <div class="table-scroll">
+                                <table class="info-table">
+                                    <tr>
+                                        <th class="label">%MEM</th>
+                                        <th class="label">PID</th>
+                                        <th class="label">User</th>
+                                        <th class="label">Command</th>
+                                    </tr>
+                                    {% for proc in summary.top_processes.memory[:10] %}
+                                    <tr>
+                                        <td class="value">{{ proc.mem_pct }}%</td>
+                                        <td class="value">{{ proc.pid }}</td>
+                                        <td class="value">{{ proc.user }}</td>
+                                        <td class="value">{{ proc.cmd | truncate(40) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+
+                {% if summary.cpu_vulnerabilities %}
+                <div class="info-card" style="margin-top: 1rem;">
+                    <h3>CPU Security Status</h3>
+                    <table class="info-table">
+                        {% for vuln_name, vuln_status in summary.cpu_vulnerabilities.items() %}
+                        <tr>
+                            <td class="label">{{ vuln_name | replace('_', ' ') | title }}</td>
+                            <td class="value">
+                                {% if vuln_status == 'Not affected' %}
+                                    <span style="color: #22c55e;">{{ vuln_status }}</span>
+                                {% elif vuln_status == 'Vulnerable' %}
+                                    <span style="color: #ef4444;">{{ vuln_status }}</span>
+                                {% elif 'Mitigation' in vuln_status %}
+                                    <span style="color: #f59e0b;">{{ vuln_status }}</span>
+                                {% else %}
+                                    {{ vuln_status }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+                {% endif %}
+
+                {% if summary.kernel_tainted %}
+                <div class="info-card" style="margin-top: 1rem;">
+                    <h3>Kernel Status</h3>
+                    <table class="info-table">
+                        <tr>
+                            <td class="label">Tainted Status</td>
+                            <td class="value">
+                                {% if summary.kernel_tainted == 'Not Tainted' %}
+                                    <span style="color: #22c55e;">{{ summary.kernel_tainted }}</span>
+                                {% elif summary.kernel_tainted == 'Tainted' %}
+                                    <span style="color: #ef4444;">{{ summary.kernel_tainted }}</span>
+                                {% else %}
+                                    {{ summary.kernel_tainted }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                {% endif %}
+
+                {% if summary.supportconfig_info %}
+                <div class="info-card" style="margin-top: 1rem;">
+                    <h3>Supportconfig Information</h3>
+                    <table class="info-table">
+                        {% if summary.supportconfig_info.script_version %}
+                        <tr>
+                            <td class="label">Script Version</td>
+                            <td class="value">{{ summary.supportconfig_info.script_version }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if summary.supportconfig_info.library_version %}
+                        <tr>
+                            <td class="label">Library Version</td>
+                            <td class="value">{{ summary.supportconfig_info.library_version }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if summary.supportconfig_info.script_date %}
+                        <tr>
+                            <td class="label">Script Date</td>
+                            <td class="value">{{ summary.supportconfig_info.script_date }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
                 </div>
                 {% endif %}
             </section>
