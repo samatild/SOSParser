@@ -14,6 +14,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Fetch tags
+        run: git fetch --tags
+
       - name: Read version
         id: version
         run: echo "tag=$(cat VERSION)" >> $GITHUB_OUTPUT
