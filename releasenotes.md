@@ -1,8 +1,8 @@
 # Release Notes
 
-## v0.1.0 (2023-10-27)
+## v0.0.0 (2023-10-27)
 
 ### New Features
 
-- Initial release of the project.
-- Basic functionality for parsing sosreports.
+- Dummy Test
+- Basic functionality
