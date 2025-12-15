@@ -25,5 +25,5 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           message: |
-            New release for this amazing tool!
+            SOSParser New Release Announcement!
             ${{ steps.release_notes.outputs.notes }}
