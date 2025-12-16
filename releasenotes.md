@@ -1,8 +1,6 @@
 # Release Notes
 
-## v0.0.0 (2023-10-27)
+## [0.2.5] - 2025-12-16
 
-### New Features
-
-- Dummy Test
-- Basic functionality
+### Added
+- **Debian Package Support**: Added Debian package parsing (`dpkg -l`) for SOSReport when RPM packages are not available, supporting both Red Hat/CentOS/SUSE (RPM) and Debian/Ubuntu (DPKG) based systems

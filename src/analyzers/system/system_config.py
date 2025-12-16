@@ -293,30 +293,90 @@ class SystemConfigAnalyzer:
     def analyze_packages(self, base_path: Path) -> dict:
         """Analyze package management"""
         Logger.debug("Analyzing package management")
-        
+
         data = {}
-        
-        # RPM packages
-        rpm_list = base_path / 'sos_commands' / 'rpm' / 'rpm_-qa'
-        if rpm_list.exists():
-            packages = rpm_list.read_text().splitlines()
+
+        # RPM packages (Red Hat/CentOS/SUSE based systems)
+        # Try different possible RPM file names
+        rpm_files = [
+            base_path / 'sos_commands' / 'rpm' / 'rpm_-qa',
+            base_path / 'sos_commands' / 'rpm' / 'sh_-c_rpm_--nodigest_-qa_--qf_-59_NVRA_INSTALLTIME_date_sort_-V'
+        ]
+
+        rpm_list = None
+        for rpm_file in rpm_files:
+            if rpm_file.exists():
+                rpm_list = rpm_file
+                break
+
+        if rpm_list:
+            content = rpm_list.read_text()
+            packages = []
+            for line in content.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                # Handle different RPM output formats
+                if ' ' in line:
+                    # Format: package-name-version.arch date
+                    package_name = line.split()[0]
+                else:
+                    # Format: just package name
+                    package_name = line
+                packages.append(package_name)
+
             data['rpm_count'] = len(packages)
             data['rpm_sample'] = packages[:50]  # First 50
-        
-        # DNF/YUM repos
+            data['package_manager'] = 'rpm'
+
+        # Debian packages (Debian/Ubuntu based systems)
+        elif (base_path / 'sos_commands' / 'dpkg' / 'dpkg_-l').exists():
+            debian_list = base_path / 'sos_commands' / 'dpkg' / 'dpkg_-l'
+            content = debian_list.read_text()
+
+            packages = []
+            for line in content.splitlines():
+                line = line.strip()
+                if not line or line.startswith('Desired=') or line.startswith('||/'):
+                    continue  # Skip headers
+
+                # Parse dpkg -l format: Status|Name|Version|Architecture|Description
+                parts = line.split(None, 4)  # Split on whitespace, max 5 parts
+                if len(parts) >= 3:  # Need at least status, name, version
+                    # Skip lines that don't start with proper status (ii, rc, etc.)
+                    if len(parts[0]) >= 2 and parts[0][0].isalpha():
+                        package_info = f"{parts[1]} {parts[2]}"  # name version
+                        packages.append(package_info)
+
+            data['rpm_count'] = len(packages)  # Keep compatibility with template
+            data['rpm_sample'] = packages[:50]  # First 50
+            data['package_manager'] = 'dpkg'
+
+        # APT repos
+        apt_sources = base_path / 'etc' / 'apt' / 'sources.list'
+        if apt_sources.exists():
+            data['repos'] = apt_sources.read_text()
+
+        # DNF/YUM repos (fallback)
         dnf_repos = base_path / 'sos_commands' / 'dnf' / 'dnf_-C_repolist'
         if not dnf_repos.exists():
             dnf_repos = base_path / 'sos_commands' / 'yum' / 'yum_-C_repolist'
-        if dnf_repos.exists():
+        if dnf_repos.exists() and 'repos' not in data:
             data['repos'] = dnf_repos.read_text()
-        
-        # DNF/YUM config
-        dnf_conf = base_path / 'etc' / 'dnf' / 'dnf.conf'
-        if not dnf_conf.exists():
-            dnf_conf = base_path / 'etc' / 'yum.conf'
-        if dnf_conf.exists():
-            data['package_manager_conf'] = dnf_conf.read_text()
-        
+
+        # Package manager config
+        # APT config
+        apt_conf = base_path / 'etc' / 'apt' / 'apt.conf'
+        if apt_conf.exists():
+            data['package_manager_conf'] = apt_conf.read_text()
+        # DNF/YUM config (fallback)
+        else:
+            dnf_conf = base_path / 'etc' / 'dnf' / 'dnf.conf'
+            if not dnf_conf.exists():
+                dnf_conf = base_path / 'etc' / 'yum.conf'
+            if dnf_conf.exists():
+                data['package_manager_conf'] = dnf_conf.read_text()
+
         return data
     
     def analyze_kernel_modules(self, base_path: Path) -> dict:
