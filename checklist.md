@@ -226,6 +226,10 @@
   - `fs-diskio.txt` (df, disk stats)
 - [x] **Multipath Configuration**
   - `mpio.txt` (device mapper multipath)
+- [x] **NFS Configuration** (Supportconfig only - HTML report subtabs)
+  - `nfs.txt` (NFS client/server config, services, exports)
+- [x] **Samba Configuration** (Supportconfig only - HTML report subtabs)
+  - `samba.txt` (SMB/CIFS packages and configuration)
 
 ### Network Analysis
 - [x] **Network Configuration**
@@ -271,8 +275,6 @@
   - `livepatch.txt` (kernel live patching)
 - [ ] **High Availability**
   - `ha.txt` (HA cluster configuration)
-- [ ] **NFS Configuration**
-  - `nfs.txt` (NFS client/server config)
 - [ ] **OCFS2**
   - `ocfs2.txt` (Oracle Cluster Filesystem)
 - [ ] **CIMOM**
@@ -285,8 +287,6 @@
   - `ldap.txt` (LDAP client config)
 - [ ] **SSSD Configuration**
   - `sssd.txt` (System Security Services)
-- [ ] **Samba Configuration**
-  - `samba.txt` (SMB/CIFS configuration)
 - [ ] **NTP Configuration**
   - `ntp.txt` (Network Time Protocol)
 - [ ] **Web Services**
