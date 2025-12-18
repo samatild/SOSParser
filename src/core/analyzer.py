@@ -364,6 +364,7 @@ class SOSReportAnalyzer:
                 execution_timestamp=execution_timestamp,
                 diagnostic_timestamp=diagnostic_timestamp,
                 enhanced_summary=enhanced_summary,
+                format_type=format_type,
             )
             
             # Generate the report

@@ -64,10 +64,11 @@ def prepare_report_data(
     execution_timestamp: str,
     diagnostic_timestamp: str = None,
     enhanced_summary: Dict[str, Any] = None,
+    format_type: str = 'unknown',
 ) -> Dict[str, Any]:
     """
     Prepare the report data dictionary.
-    
+
     Args:
         os_info: OS information dictionary
         hostname: System hostname
@@ -81,7 +82,8 @@ def prepare_report_data(
         format_scenario_results: Function to format scenario results as HTML
         execution_timestamp: Timestamp when analyzer was executed
         diagnostic_timestamp: Timestamp when sosreport was generated
-        
+        format_type: Format type ('sosreport' or 'supportconfig')
+
     Returns:
         Dictionary containing all report data
     """
@@ -93,6 +95,7 @@ def prepare_report_data(
         'diagnostic_timestamp': diagnostic_timestamp or 'Unknown',
         'execution_timestamp': execution_timestamp,
         'os_logo': os_logo,
+        'format_type': format_type,
         'summary': {
             'hostname': hostname,
             'os_info': os_info,

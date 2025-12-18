@@ -8,6 +8,8 @@ from .filesystem_analyzers.mounts import MountsAnalyzer
 from .filesystem_analyzers.disk_usage import DiskUsageAnalyzer
 from .filesystem_analyzers.lvm import LvmAnalyzer
 from .filesystem_analyzers.filesystem_types import FilesystemTypesAnalyzer
+from .filesystem_analyzers.nfs import NfsAnalyzer
+from .filesystem_analyzers.samba import SambaAnalyzer
 
 
 class SupportconfigFilesystem:
@@ -38,4 +40,6 @@ class SupportconfigFilesystem:
             'lvm': LvmAnalyzer(self.root_path, self.parser).analyze(),
             'filesystems': FilesystemTypesAnalyzer(
                 self.root_path, self.parser).analyze(),
+            'nfs': NfsAnalyzer(self.root_path, self.parser).analyze(),
+            'samba': SambaAnalyzer(self.root_path, self.parser).analyze(),
         }
