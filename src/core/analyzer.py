@@ -154,6 +154,7 @@ class SOSReportAnalyzer:
             'security': config_data.get('security', {}),
             'packages': config_data.get('packages', {}),
             'kernel_modules': config_data.get('kernel_modules', {}),
+            'crash': config_data.get('crash', {}),
             'containers': config_data.get('containers', {}),
             'users_groups': {},
         }
@@ -238,6 +239,7 @@ class SOSReportAnalyzer:
                     'security': self.system_config_analyzer.analyze_security(extracted_dir),
                     'packages': self.system_config_analyzer.analyze_packages(extracted_dir),
                     'kernel_modules': self.system_config_analyzer.analyze_kernel_modules(extracted_dir),
+                    'crash': self.system_config_analyzer.analyze_crash_kdump(extracted_dir),
                     'users_groups': self.system_config_analyzer.analyze_users_groups(extracted_dir),
                     'containers': self.system_config_analyzer.analyze_containers(extracted_dir),
                 }

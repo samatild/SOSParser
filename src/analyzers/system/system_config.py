@@ -2,7 +2,10 @@
 """System configuration analysis from sosreport"""
 
 from pathlib import Path
+from typing import Any, Dict, List
+
 from analyzers.docker import DockerCommandsAnalyzer
+from utils.crash_directory import CrashDirectoryCollector
 from utils.logger import Logger
 
 
@@ -432,8 +435,79 @@ class SystemConfigAnalyzer:
         
         return data
 
+    def analyze_crash_kdump(self, base_path: Path) -> dict:
+        """Analyze crashkernel/kdump configuration and collected crash data."""
+        Logger.debug("Analyzing crash and kdump data from sosreport")
+
+        data: Dict[str, Any] = {}
+
+        config_files = self._read_crash_config_files(base_path)
+        if config_files:
+            data['config_files'] = config_files
+
+        sos_outputs = self._read_sos_kdump_commands(base_path)
+        if sos_outputs:
+            data['sos_commands'] = sos_outputs
+
+        collector = CrashDirectoryCollector(base_path)
+        var_crash = collector.collect(collector.discover_default_directories())
+        if var_crash:
+            data['var_crash'] = var_crash
+
+        return data
+
     def analyze_containers(self, base_path: Path) -> dict:
         """Analyze container runtime information (docker/podman)."""
         Logger.debug("Analyzing container runtime information")
         analyzer = DockerCommandsAnalyzer(base_path)
         return analyzer.analyze()
+
+    def _read_crash_config_files(self, base_path: Path) -> List[Dict[str, str]]:
+        """Return contents of interesting crash-related config files."""
+        files: List[Dict[str, str]] = []
+        config_paths = [
+            ("etc/sysconfig/kdump", "/etc/sysconfig/kdump"),
+            ("etc/kdump.conf", "/etc/kdump.conf"),
+            ("var/log/kdump.log", "/var/log/kdump.log"),
+        ]
+
+        for rel_path, display_path in config_paths:
+            file_path = base_path / rel_path
+            if not file_path.exists():
+                continue
+            content = self._read_text_with_limit(file_path)
+            if content is None:
+                continue
+            files.append({"path": display_path, "content": content})
+
+        return files
+
+    def _read_sos_kdump_commands(self, base_path: Path) -> List[Dict[str, str]]:
+        """Read outputs captured under sos_commands/kdump."""
+        sos_dir = base_path / "sos_commands" / "kdump"
+        if not sos_dir.exists():
+            return []
+
+        entries: List[Dict[str, str]] = []
+        for child in sorted(sos_dir.iterdir()):
+            if not child.is_file():
+                continue
+            content = self._read_text_with_limit(child)
+            if content is None:
+                continue
+            entries.append({"name": child.name, "content": content})
+
+        return entries
+
+    def _read_text_with_limit(self, path: Path, limit: int = 200_000) -> str | None:
+        """Read text from a file, truncating to a safe size."""
+        try:
+            with path.open("r", encoding="utf-8", errors="ignore") as handle:
+                data = handle.read(limit + 1)
+        except Exception as exc:
+            Logger.debug(f"Failed to read {path}: {exc}")
+            return None
+
+        if len(data) > limit:
+            return data[:limit] + "\n... truncated ..."
+        return data

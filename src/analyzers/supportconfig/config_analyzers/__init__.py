@@ -14,6 +14,7 @@ from .security import SecurityConfigAnalyzer
 from .packages import PackagesConfigAnalyzer
 from .kernel_modules import KernelModulesConfigAnalyzer
 from .containers import ContainersConfigAnalyzer
+from .crash import CrashConfigAnalyzer
 
 __all__ = [
     'GeneralConfigAnalyzer',
@@ -25,5 +26,6 @@ __all__ = [
     'SecurityConfigAnalyzer',
     'PackagesConfigAnalyzer',
     'KernelModulesConfigAnalyzer',
+    'CrashConfigAnalyzer',
     'ContainersConfigAnalyzer',
 ]

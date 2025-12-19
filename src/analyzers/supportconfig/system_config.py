@@ -20,6 +20,7 @@ from .config_analyzers.security import SecurityConfigAnalyzer
 from .config_analyzers.packages import PackagesConfigAnalyzer
 from .config_analyzers.kernel_modules import KernelModulesConfigAnalyzer
 from .config_analyzers.containers import ContainersConfigAnalyzer
+from .config_analyzers.crash import CrashConfigAnalyzer
 
 
 class SupportconfigSystemConfig:
@@ -42,5 +43,6 @@ class SupportconfigSystemConfig:
             'security': SecurityConfigAnalyzer(self.root_path, self.parser).analyze(),
             'packages': PackagesConfigAnalyzer(self.root_path, self.parser).analyze(),
             'kernel_modules': KernelModulesConfigAnalyzer(self.root_path, self.parser).analyze(),
+            'crash': CrashConfigAnalyzer(self.root_path, self.parser).analyze(),
             'containers': ContainersConfigAnalyzer(self.root_path).analyze(),
         }
