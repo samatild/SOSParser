@@ -68,6 +68,8 @@
   - SELinux/AppArmor status and config, audit rules, crypto-policies
 - [x] **Kernel Modules**
   - Loaded modules, modprobe config, sysctl parameters
+- [x] **Crash & Kdump Configuration**
+  - `/etc/sysconfig/kdump`, `/etc/kdump.conf`, `sos_commands/kdump/*`, `/var/crash`
 - [x] **Users and Groups**
   - passwd, group, shadow, sudoers, user/group databases
 - [x] **Sysconfig/System Configuration**
@@ -160,8 +162,6 @@
   - `etc/elasticsearch/`, `sos_commands/elastic/*`
 - [ ] **Cockpit Configuration**
   - `etc/cockpit/`, `sos_commands/cockpit/*`
-- [ ] **Kdump Configuration**
-  - `sos_commands/kdump/*`
 - [ ] **GRUB2 Advanced Configuration**
   - `sos_commands/grub2/*`
 
@@ -214,6 +214,8 @@
   - `rpm.txt` (RPM packages)
 - [x] **Kernel Modules**
   - `env.txt` (sysctl, ulimit)
+- [x] **Crash/Kdump Information**
+  - `kdump.txt`, `crash.txt`, `/var/crash`
 - [x] **Container Runtime**
   - `docker.txt`, `podman-root.txt`
 
@@ -279,8 +281,6 @@
   - `ocfs2.txt` (Oracle Cluster Filesystem)
 - [ ] **CIMOM**
   - `cimom.txt` (Common Information Model)
-- [ ] **Crash Analysis**
-  - `crash.txt` (system crash dumps)
 - [ ] **BPF Analysis**
   - `bpf.txt` (eBPF programs)
 - [ ] **LDAP Configuration**

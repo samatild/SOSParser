@@ -51,6 +51,7 @@
             {% if cloud %}
             <button class="tab-button" data-tab="cloud">Cloud</button>
             {% endif %}
+            <button class="tab-button" data-tab="crash">Crash</button>
             <button class="tab-button" data-tab="logs">Logs</button>
         </nav>
 
@@ -900,6 +901,7 @@
                     {% endif %}
                 </div>
 
+
                 <div id="containers" class="subtab-content">
                     <h3>Containers (Docker)</h3>
                     {% set docker = system_config.containers %}
@@ -1068,6 +1070,157 @@
                     <p>No user/group data available</p>
                     {% endif %}
                 </div>
+            </section>
+
+            <!-- Crash Tab -->
+            <section id="crash" class="tab-content">
+                <h2>Crash &amp; Kdump</h2>
+                {% if system_config.crash %}
+                    {% set crash = system_config.crash %}
+                    {% set crash_dirs = crash.var_crash.directories if crash.var_crash and crash.var_crash.directories else [] %}
+                    {% if crash.kdump or crash.crash_txt or crash.crashcontrol or crash.config_files or crash.sos_commands or crash_dirs %}
+                        {% if crash.kdump %}
+                        <h3>kdump</h3>
+                        {% if crash.kdump.sysconfig %}
+                        <h4>/etc/sysconfig/kdump</h4>
+                        <pre>{{ crash.kdump.sysconfig }}</pre>
+                        {% endif %}
+                        {% if crash.kdump.files %}
+                        <h4>Captured Files</h4>
+                        {% for file_entry in crash.kdump.files %}
+                            {% if crash.kdump.sysconfig and 'sysconfig/kdump' in file_entry.path %}
+                                {# Skip duplicate since sysconfig shown above #}
+                            {% else %}
+                            <h5>{{ file_entry.path }}</h5>
+                            <pre>{{ file_entry.content }}</pre>
+                            {% endif %}
+                        {% endfor %}
+                        {% endif %}
+                        {% if crash.kdump.commands %}
+                        <h4>Command Output</h4>
+                        {% for entry in crash.kdump.commands %}
+                        <p><strong>{{ entry.command or entry.header }}</strong></p>
+                        {% if entry.output %}
+                        <pre>{{ entry.output }}</pre>
+                        {% endif %}
+                        {% endfor %}
+                        {% endif %}
+                        {% if crash.kdump.notes %}
+                        <h4>Notes</h4>
+                        <pre>{{ crash.kdump.notes | join('\n\n') }}</pre>
+                        {% endif %}
+                        {% if crash.kdump.sections %}
+                        <h4>Additional Sections</h4>
+                        {% for section in crash.kdump.sections %}
+                        <p><strong>{{ section.header }}</strong></p>
+                        <pre>{{ section.content }}</pre>
+                        {% endfor %}
+                        {% endif %}
+                        {% endif %}
+
+                        {% if crash.crash_txt %}
+                        <h3>crash.txt</h3>
+                        {% set crash_txt = crash.crash_txt %}
+                        {% if crash_txt.commands %}
+                        <h4>Command Output</h4>
+                        {% for entry in crash_txt.commands %}
+                        <p><strong>{{ entry.command or entry.header }}</strong></p>
+                        {% if entry.output %}
+                        <pre>{{ entry.output }}</pre>
+                        {% endif %}
+                        {% endfor %}
+                        {% endif %}
+                        {% if crash_txt.files %}
+                        <h4>Captured Files</h4>
+                        {% for file_entry in crash_txt.files %}
+                        <h5>{{ file_entry.path }}</h5>
+                        <pre>{{ file_entry.content }}</pre>
+                        {% endfor %}
+                        {% endif %}
+                        {% if crash_txt.notes %}
+                        <h4>Notes</h4>
+                        <pre>{{ crash_txt.notes | join('\n\n') }}</pre>
+                        {% endif %}
+                        {% if crash_txt.sections %}
+                        <h4>Additional Sections</h4>
+                        {% for section in crash_txt.sections %}
+                        <p><strong>{{ section.header }}</strong></p>
+                        <pre>{{ section.content }}</pre>
+                        {% endfor %}
+                        {% endif %}
+                        {% endif %}
+
+                        {% if crash.crashcontrol %}
+                        <h3>crashcontrol</h3>
+                        {% set crashcontrol = crash.crashcontrol %}
+                        {% if crashcontrol.commands %}
+                        <h4>Command Output</h4>
+                        {% for entry in crashcontrol.commands %}
+                        <p><strong>{{ entry.command or entry.header }}</strong></p>
+                        {% if entry.output %}
+                        <pre>{{ entry.output }}</pre>
+                        {% endif %}
+                        {% endfor %}
+                        {% endif %}
+                        {% if crashcontrol.files %}
+                        <h4>Captured Files</h4>
+                        {% for file_entry in crashcontrol.files %}
+                        <h5>{{ file_entry.path }}</h5>
+                        <pre>{{ file_entry.content }}</pre>
+                        {% endfor %}
+                        {% endif %}
+                        {% if crashcontrol.notes %}
+                        <h4>Notes</h4>
+                        <pre>{{ crashcontrol.notes | join('\n\n') }}</pre>
+                        {% endif %}
+                        {% if crashcontrol.sections %}
+                        <h4>Additional Sections</h4>
+                        {% for section in crashcontrol.sections %}
+                        <p><strong>{{ section.header }}</strong></p>
+                        <pre>{{ section.content }}</pre>
+                        {% endfor %}
+                        {% endif %}
+                        {% endif %}
+
+                        {% if crash.config_files %}
+                        <h3>Crash Configuration Files</h3>
+                        {% for file_entry in crash.config_files %}
+                        <h4>{{ file_entry.path }}</h4>
+                        <pre>{{ file_entry.content }}</pre>
+                        {% endfor %}
+                        {% endif %}
+
+                        {% if crash.sos_commands %}
+                        <h3>sos_commands/kdump</h3>
+                        {% for entry in crash.sos_commands %}
+                        <h4>{{ entry.name }}</h4>
+                        <pre>{{ entry.content }}</pre>
+                        {% endfor %}
+                        {% endif %}
+
+                        {% if crash_dirs %}
+                        <h3>/var/crash Contents</h3>
+                        {% for directory in crash_dirs %}
+                        <h4>{{ directory.path }}</h4>
+                        {% if directory.entries %}
+                        <pre>{% for line in directory.entries %}{{ line }}
+{% endfor %}</pre>
+                        {% endif %}
+                        {% if directory.files %}
+                        <h5>Key Files</h5>
+                        {% for file_entry in directory.files %}
+                        <p><strong>{{ file_entry.path }}</strong></p>
+                        <pre>{{ file_entry.content }}</pre>
+                        {% endfor %}
+                        {% endif %}
+                        {% endfor %}
+                        {% endif %}
+                    {% else %}
+                    <p>No crash dump data available</p>
+                    {% endif %}
+                {% else %}
+                <p>No crash dump data available</p>
+                {% endif %}
             </section>
 
             <!-- Filesystem Tab -->
