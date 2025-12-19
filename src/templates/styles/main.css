@@ -73,6 +73,28 @@ body {
   flex-shrink: 0;
 }
 
+.logo-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: opacity 0.2s ease;
+}
+
+.logo-link:hover {
+  opacity: 0.8;
+}
+
+.title-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: opacity 0.2s ease;
+}
+
+.title-link:hover {
+  opacity: 0.8;
+}
+
 .logo img {
   height: 50px;
   width: 50px;
