@@ -16,26 +16,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add active class to clicked tab and corresponding content
             this.classList.add('active');
             document.getElementById(targetTab).classList.add('active');
-            
-            // Save current tab to sessionStorage
-            sessionStorage.setItem('activeTab', targetTab);
         });
     });
-    
-    // Restore last active tab from sessionStorage
-    const lastActiveTab = sessionStorage.getItem('activeTab');
-    if (lastActiveTab) {
-        const targetButton = document.querySelector(`[data-tab="${lastActiveTab}"]`);
-        const targetContent = document.getElementById(lastActiveTab);
-        
-        if (targetButton && targetContent) {
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
-            
-            targetButton.classList.add('active');
-            targetContent.classList.add('active');
-        }
-    }
     
     // Subtab switching
     const subtabButtons = document.querySelectorAll('.subtab-button');
@@ -62,32 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 targetContent.classList.add('active');
             }
             
-            // Save current subtab for this tab
-            const parentTabId = parentTab.getAttribute('id');
-            sessionStorage.setItem(`activeSubtab-${parentTabId}`, targetSubtab);
         });
-    });
-    
-    // Restore last active subtabs
-    tabContents.forEach(tabContent => {
-        const tabId = tabContent.getAttribute('id');
-        const lastSubtab = sessionStorage.getItem(`activeSubtab-${tabId}`);
-        
-        if (lastSubtab) {
-            const targetButton = tabContent.querySelector(`[data-subtab="${lastSubtab}"]`);
-            const targetContent = tabContent.querySelector(`#${lastSubtab}`);
-            
-            if (targetButton && targetContent) {
-                const buttons = tabContent.querySelectorAll('.subtab-button');
-                const contents = tabContent.querySelectorAll('.subtab-content');
-                
-                buttons.forEach(btn => btn.classList.remove('active'));
-                contents.forEach(content => content.classList.remove('active'));
-                
-                targetButton.classList.add('active');
-                targetContent.classList.add('active');
-            }
-        }
     });
 });
 
