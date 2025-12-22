@@ -21,6 +21,7 @@ from .config_analyzers.packages import PackagesConfigAnalyzer
 from .config_analyzers.kernel_modules import KernelModulesConfigAnalyzer
 from .config_analyzers.containers import ContainersConfigAnalyzer
 from .config_analyzers.crash import CrashConfigAnalyzer
+from .config_analyzers.sssd import SSSDConfigAnalyzer
 
 
 class SupportconfigSystemConfig:
@@ -45,4 +46,5 @@ class SupportconfigSystemConfig:
             'kernel_modules': KernelModulesConfigAnalyzer(self.root_path, self.parser).analyze(),
             'crash': CrashConfigAnalyzer(self.root_path, self.parser).analyze(),
             'containers': ContainersConfigAnalyzer(self.root_path).analyze(),
+            'sssd': SSSDConfigAnalyzer(self.root_path, self.parser).analyze(),
         }
