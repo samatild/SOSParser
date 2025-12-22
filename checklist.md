@@ -76,6 +76,9 @@
   - System configuration files, environment settings
 - [x] **udev Configuration**
   - Device manager rules and configuration
+- [x] **sssd Configuration**
+  - System Security Services Daemon (sssd.conf)
+ 
 
 ## Filesystem Analysis
 - [x] **Mount Information**
