@@ -285,7 +285,7 @@
   - `bpf.txt` (eBPF programs)
 - [ ] **LDAP Configuration**
   - `ldap.txt` (LDAP client config)
-- [ ] **SSSD Configuration**
+- [x] **SSSD Configuration**
   - `sssd.txt` (System Security Services)
 - [ ] **NTP Configuration**
   - `ntp.txt` (Network Time Protocol)
