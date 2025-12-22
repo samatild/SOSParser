@@ -218,6 +218,8 @@
   - `kdump.txt`, `crash.txt`, `/var/crash`
 - [x] **Container Runtime**
   - `docker.txt`, `podman-root.txt`
+- [x] **SSSD Configuration**
+  - `sssd.txt` (System Security Services)
 
 ### Filesystem Analysis
 - [x] **LVM Configuration**
@@ -285,8 +287,6 @@
   - `bpf.txt` (eBPF programs)
 - [ ] **LDAP Configuration**
   - `ldap.txt` (LDAP client config)
-- [x] **SSSD Configuration**
-  - `sssd.txt` (System Security Services)
 - [ ] **NTP Configuration**
   - `ntp.txt` (Network Time Protocol)
 - [ ] **Web Services**
