@@ -415,25 +415,119 @@ class SystemConfigAnalyzer:
     def analyze_users_groups(self, base_path: Path) -> dict:
         """Analyze users and groups"""
         Logger.debug("Analyzing users and groups")
-        
+
         data = {}
-        
+
         # passwd file
         passwd = base_path / 'etc' / 'passwd'
         if passwd.exists():
             data['passwd'] = passwd.read_text()
-        
+
         # group file
         group = base_path / 'etc' / 'group'
         if group.exists():
             data['group'] = group.read_text()
-        
+
         # sudoers
         sudoers = base_path / 'etc' / 'sudoers'
         if sudoers.exists():
             data['sudoers'] = sudoers.read_text()
-        
+
         return data
+
+    def analyze_sssd(self, base_path: Path) -> dict:
+        """Analyze SSSD configuration"""
+        Logger.debug("Analyzing SSSD configuration")
+
+        data = {}
+
+        # SSSD main configuration file
+        sssd_conf = base_path / 'etc' / 'sssd' / 'sssd.conf'
+        if sssd_conf.exists():
+            try:
+                content = sssd_conf.read_text()
+                data['config_file'] = content
+                data['config_path'] = '/etc/sssd/sssd.conf'
+
+                # Parse the configuration
+                parsed_config = self._parse_sssd_config(content)
+                if parsed_config:
+                    data.update(parsed_config)
+
+            except Exception as e:
+                Logger.warning(f"Failed to read SSSD config: {e}")
+
+        return data
+
+    def _parse_sssd_config(self, content: str) -> dict:
+        """Parse SSSD configuration file content"""
+        parsed = {
+            'sections': {},
+            'domains': []
+        }
+
+        lines = content.split('\n')
+        current_section = None
+        current_section_lines = []
+
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+
+            # Check for section headers
+            if line.startswith('[') and line.endswith(']'):
+                # Save previous section
+                if current_section and current_section_lines:
+                    parsed['sections'][current_section] = current_section_lines
+
+                    # If this is a domain section, add to domains list
+                    if current_section.startswith('domain/'):
+                        domain_name = current_section[7:]  # Remove 'domain/' prefix
+                        domain_config = self._parse_section_config(current_section_lines)
+                        parsed['domains'].append({
+                            'name': domain_name,
+                            'config': domain_config
+                        })
+
+                # Start new section
+                current_section = line[1:-1]  # Remove brackets
+                current_section_lines = []
+            else:
+                # Add to current section
+                if current_section:
+                    current_section_lines.append(line)
+
+        # Save last section
+        if current_section and current_section_lines:
+            parsed['sections'][current_section] = current_section_lines
+
+            # If this is a domain section, add to domains list
+            if current_section.startswith('domain/'):
+                domain_name = current_section[7:]  # Remove 'domain/' prefix
+                domain_config = self._parse_section_config(current_section_lines)
+                parsed['domains'].append({
+                    'name': domain_name,
+                    'config': domain_config
+                })
+
+        # Extract main SSSD configuration from [sssd] section
+        if 'sssd' in parsed['sections']:
+            parsed['sssd_config'] = self._parse_section_config(parsed['sections']['sssd'])
+
+        return parsed
+
+    def _parse_section_config(self, lines: list) -> dict:
+        """Parse configuration lines into key-value pairs"""
+        config = {}
+
+        for line in lines:
+            line = line.strip()
+            if '=' in line:
+                key, value = line.split('=', 1)
+                config[key.strip()] = value.strip()
+
+        return config
 
     def analyze_crash_kdump(self, base_path: Path) -> dict:
         """Analyze crashkernel/kdump configuration and collected crash data."""
