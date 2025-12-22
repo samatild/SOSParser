@@ -401,6 +401,7 @@
                     <button class="subtab-button" data-subtab="packages">Packages</button>
                     <button class="subtab-button" data-subtab="kernel-modules">Kernel</button>
                     <button class="subtab-button" data-subtab="containers">Containers</button>
+                    <button class="subtab-button" data-subtab="sssd">SSSD</button>
                     <button class="subtab-button" data-subtab="users-groups">Users</button>
                 </nav>
 
@@ -1052,6 +1053,93 @@
                         {% endif %}
                     {% else %}
                     <p>No container runtime data available</p>
+                    {% endif %}
+                </div>
+
+                <div id="sssd" class="subtab-content">
+                    <h3>SSSD Configuration</h3>
+                    {% if system_config.sssd %}
+                        {% set sssd = system_config.sssd %}
+
+                        {% if sssd.config_path %}
+                        <h4>Configuration File: {{ sssd.config_path }}</h4>
+                        {% endif %}
+
+                        {% if sssd.sssd_config %}
+                        <h4>SSSD Main Configuration</h4>
+                        <table class="info-table">
+                            {% for key, value in sssd.sssd_config.items() %}
+                            <tr>
+                                <td class="label">{{ key }}</td>
+                                <td class="value">{{ value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                        {% endif %}
+
+                        {% if sssd.domains %}
+                        <h4>SSSD Domains</h4>
+                        {% for domain in sssd.domains %}
+                        <h5>Domain: {{ domain.name }}</h5>
+                        <table class="info-table">
+                            {% for key, value in domain.config.items() %}
+                            <tr>
+                                <td class="label">{{ key }}</td>
+                                <td class="value">{{ value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                        {% endfor %}
+                        {% endif %}
+
+                        {% if sssd.config_file %}
+                        <h4>Full Configuration File Content</h4>
+                        <pre>{{ sssd.config_file }}</pre>
+                        {% endif %}
+
+                        {# Supportconfig-specific fields #}
+                        {% if sssd.verification_status %}
+                        <h4>Package Verification</h4>
+                        <p><strong>Status:</strong> {{ sssd.verification_status }}</p>
+                        {% if sssd.verification_details %}
+                        <pre>{{ sssd.verification_details | join('\n') }}</pre>
+                        {% endif %}
+                        {% endif %}
+
+                        {% if sssd.service_status %}
+                        <h4>SSSD Service Status</h4>
+                        <table class="info-table">
+                            {% if sssd.service_status.loaded %}
+                            <tr><td class="label">Loaded</td><td class="value">{{ sssd.service_status.loaded }}</td></tr>
+                            {% endif %}
+                            {% if sssd.service_status.active %}
+                            <tr><td class="label">Active</td><td class="value">{{ sssd.service_status.active }}</td></tr>
+                            {% endif %}
+                            {% if sssd.service_status.pid %}
+                            <tr><td class="label">Main PID</td><td class="value">{{ sssd.service_status.pid }}</td></tr>
+                            {% endif %}
+                        </table>
+                        {% endif %}
+
+                        {% if sssd.nsswitch_config %}
+                        <h4>Name Service Switch Configuration (/etc/nsswitch.conf)</h4>
+                        <table class="info-table">
+                            {% for key, value in sssd.nsswitch_config.items() %}
+                            <tr>
+                                <td class="label">{{ key }}</td>
+                                <td class="value">{{ value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                        {% endif %}
+
+                        {% if sssd.pam_config %}
+                        <h4>PAM Configuration</h4>
+                        <pre>{{ sssd.pam_config | join('\n') }}</pre>
+                        {% endif %}
+
+                    {% else %}
+                    <p>No SSSD configuration data available</p>
                     {% endif %}
                 </div>
 

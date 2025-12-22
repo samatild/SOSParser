@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.8] - 2025-12-22
+
+## Added
+- **sssd Implementation**: Added support for Security Security Services daemon for both SOSReport and Supportconfig
+
+## Security Improvements
+- **zipp**: Webapp also pinned to 3.19.1 to avoid vulnerability
+
+---
+
 ## [0.2.7] - 2025-12-19
 
 ## Added

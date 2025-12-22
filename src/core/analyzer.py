@@ -242,6 +242,7 @@ class SOSReportAnalyzer:
                     'crash': self.system_config_analyzer.analyze_crash_kdump(extracted_dir),
                     'users_groups': self.system_config_analyzer.analyze_users_groups(extracted_dir),
                     'containers': self.system_config_analyzer.analyze_containers(extracted_dir),
+                    'sssd': self.system_config_analyzer.analyze_sssd(extracted_dir),
                 }
                 
                 # Analyze filesystem
