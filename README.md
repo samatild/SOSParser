@@ -1,5 +1,7 @@
 # SOSParser
 
+**🎄 Merry Christmas and a Happy New Year to all SOSParser users! 🎅**
+
 A web application for automated analysis of Linux sosreport/supportconfig diagnostic files.
 
 [![Docker Hub](https://img.shields.io/docker/pulls/samuelmatildes/sosparser)](https://hub.docker.com/r/samuelmatildes/sosparser)
