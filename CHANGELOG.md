@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Advanced security analysis modules
 - Custom scenario configuration via JSON
 
+
+## [0.2.9] - 2026-01-05
+
+## Added
+- **NTP SCC Implementation**: Added support for NTP configuration on Support Config
 ---
 
 ## [0.2.8] - 2025-12-22
