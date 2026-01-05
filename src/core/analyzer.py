@@ -156,6 +156,8 @@ class SOSReportAnalyzer:
             'kernel_modules': config_data.get('kernel_modules', {}),
             'crash': config_data.get('crash', {}),
             'containers': config_data.get('containers', {}),
+            'sssd': config_data.get('sssd', {}),
+            'ntp': config_data.get('ntp', {}),
             'users_groups': {},
         }
         

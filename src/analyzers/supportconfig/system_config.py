@@ -22,6 +22,7 @@ from .config_analyzers.kernel_modules import KernelModulesConfigAnalyzer
 from .config_analyzers.containers import ContainersConfigAnalyzer
 from .config_analyzers.crash import CrashConfigAnalyzer
 from .config_analyzers.sssd import SSSDConfigAnalyzer
+from .config_analyzers.ntp import NTPConfigAnalyzer
 
 
 class SupportconfigSystemConfig:
@@ -47,4 +48,5 @@ class SupportconfigSystemConfig:
             'crash': CrashConfigAnalyzer(self.root_path, self.parser).analyze(),
             'containers': ContainersConfigAnalyzer(self.root_path).analyze(),
             'sssd': SSSDConfigAnalyzer(self.root_path, self.parser).analyze(),
+            'ntp': NTPConfigAnalyzer(self.root_path, self.parser).analyze(),
         }
