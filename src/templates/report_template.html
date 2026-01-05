@@ -400,6 +400,7 @@
                     <button class="subtab-button" data-subtab="security">Security</button>
                     <button class="subtab-button" data-subtab="packages">Packages</button>
                     <button class="subtab-button" data-subtab="kernel-modules">Kernel</button>
+                    <button class="subtab-button" data-subtab="ntp">NTP</button>
                     <button class="subtab-button" data-subtab="containers">Containers</button>
                     <button class="subtab-button" data-subtab="sssd">SSSD</button>
                     <button class="subtab-button" data-subtab="users-groups">Users</button>
@@ -906,6 +907,144 @@
                     {% endif %}
                 </div>
 
+                {% if format_type == 'supportconfig' %}
+                <div id="ntp" class="subtab-content">
+                    <h3>NTP Configuration</h3>
+                    {% if system_config.ntp %}
+                        {% set ntp = system_config.ntp %}
+                        {% if ntp.verification_status %}
+                        <h4>Package Verification</h4>
+                        <p><strong>Status:</strong> {{ ntp.verification_status }}</p>
+                        {% if ntp.verification_details %}
+                        <pre>{{ ntp.verification_details | join('\n') }}</pre>
+                        {% endif %}
+                        {% endif %}
+
+                        {% if ntp.ntp_service or ntp.rtc_local_tz %}
+                        <h4>Time Synchronization Status</h4>
+                        <table class="info-table">
+                            {% if ntp.ntp_service %}
+                            <tr><td class="label">NTP Service</td><td class="value">{{ ntp.ntp_service }}</td></tr>
+                            {% endif %}
+                            {% if ntp.rtc_local_tz %}
+                            <tr><td class="label">RTC in Local TZ</td><td class="value">{{ ntp.rtc_local_tz }}</td></tr>
+                            {% endif %}
+                        </table>
+                        {% endif %}
+
+                        {% if ntp.service_status %}
+                        <h4>NTP Service Status</h4>
+                        {% for service_name, status in ntp.service_status.items() %}
+                        <h5>{{ service_name|upper }}</h5>
+                        <table class="info-table">
+                            {% if status.loaded %}
+                            <tr><td class="label">Loaded</td><td class="value">{{ status.loaded }}</td></tr>
+                            {% endif %}
+                            {% if status.active %}
+                            <tr><td class="label">Active</td><td class="value">{{ status.active }}</td></tr>
+                            {% endif %}
+                            {% if status.pid %}
+                            <tr><td class="label">Main PID</td><td class="value">{{ status.pid }}</td></tr>
+                            {% endif %}
+                        </table>
+                        {% endfor %}
+                        {% endif %}
+
+                        {% if ntp.servers %}
+                        <h4>NTP Servers</h4>
+                        <table class="info-table">
+                            <tr>
+                                <th class="label">Type</th>
+                                <th class="label">Address</th>
+                                <th class="label">Source</th>
+                            </tr>
+                            {% for server in ntp.servers %}
+                            <tr>
+                                <td class="value">{{ server.type }}</td>
+                                <td class="value">{{ server.address }}</td>
+                                <td class="value">{{ server.source }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                        {% endif %}
+
+                        {% if ntp.pools %}
+                        <h4>NTP Pools</h4>
+                        <table class="info-table">
+                            <tr>
+                                <th class="label">Address</th>
+                                <th class="label">Source</th>
+                            </tr>
+                            {% for pool in ntp.pools %}
+                            <tr>
+                                <td class="value">{{ pool.address }}</td>
+                                <td class="value">{{ pool.source }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                        {% endif %}
+
+                        {% if ntp.chrony_config %}
+                        <h4>Chrony Configuration (/etc/chrony.conf)</h4>
+                        <table class="info-table">
+                            {% for key, value in ntp.chrony_config.items() %}
+                            <tr>
+                                <td class="label">{{ key }}</td>
+                                <td class="value">{{ value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                        {% endif %}
+
+                        {% if ntp.ntp_config %}
+                        <h4>NTP Configuration (/etc/ntp.conf)</h4>
+                        <table class="info-table">
+                            {% for key, value in ntp.ntp_config.items() %}
+                            <tr>
+                                <td class="label">{{ key }}</td>
+                                <td class="value">{{ value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                        {% endif %}
+
+                        {% if ntp.timesyncd_config %}
+                        <h4>systemd-timesyncd Configuration (/etc/systemd/timesyncd.conf)</h4>
+                        <table class="info-table">
+                            {% for key, value in ntp.timesyncd_config.items() %}
+                            <tr>
+                                <td class="label">{{ key }}</td>
+                                <td class="value">{{ value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                        {% endif %}
+
+                        {% if ntp.chronyc_sources %}
+                        <h4>Chrony Sources (chronyc sources)</h4>
+                        <pre>{{ ntp.chronyc_sources }}</pre>
+                        {% endif %}
+
+                        {% if ntp.chronyc_tracking %}
+                        <h4>Chrony Tracking (chronyc tracking)</h4>
+                        <pre>{{ ntp.chronyc_tracking }}</pre>
+                        {% endif %}
+
+                        {% if ntp.chronyc_activity %}
+                        <h4>Chrony Activity (chronyc activity)</h4>
+                        <pre>{{ ntp.chronyc_activity }}</pre>
+                        {% endif %}
+
+                        {% if ntp.timedatectl_status %}
+                        <h4>Time/Date Status (timedatectl)</h4>
+                        <pre>{{ ntp.timedatectl_status }}</pre>
+                        {% endif %}
+
+                    {% else %}
+                    <p>No NTP configuration data available</p>
+                    {% endif %}
+                </div>
+                {% endif %}
 
                 <div id="containers" class="subtab-content">
                     <h3>Containers (Docker)</h3>

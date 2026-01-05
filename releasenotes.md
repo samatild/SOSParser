@@ -1,7 +1,5 @@
-[0.2.8] - 2025-12-22
+## [0.2.9] - 2026-01-05
 
 ## Added
-- **sssd Implementation**: Added support for Security Security Services daemon for both SOSReport and Supportconfig
+- **NTP SCC Implementation**: Added support for NTP configuration on Support Config
 
-## Security Improvements
-- **zipp**: Webapp also pinned to 3.19.1 to avoid vulnerability
