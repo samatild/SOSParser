@@ -6,7 +6,20 @@ services:
     container_name: sosparser
     ports:
       - "8000:8000"
-    command: gunicorn --bind 0.0.0.0:8000 webapp.wsgi:application
+    # Gunicorn config:
+    #   --timeout 1800: Allow up to 30 min for large file extraction + analysis
+    #   --graceful-timeout 1800: Grace period before force kill
+    #   --keep-alive 75: Keep connections alive longer for chunked uploads
+    #   --workers 2: Handle concurrent uploads (adjust based on CPU cores)
+    command: >
+      gunicorn
+      --bind 0.0.0.0:8000
+      --timeout 1800
+      --graceful-timeout 1800
+      --keep-alive 75
+      --workers 2
+      --worker-class sync
+      webapp.wsgi:application
     volumes:
       # Mount uploads and outputs for persistence (optional)
       - ./data/uploads:/app/webapp/uploads
