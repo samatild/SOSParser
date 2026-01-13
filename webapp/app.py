@@ -5,6 +5,8 @@ import re
 import secrets
 import sys
 import uuid
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -20,9 +22,122 @@ from flask import (
     make_response,
     after_this_request,
     jsonify,
+    Response,
+    stream_with_context,
 )
 from werkzeug.utils import secure_filename
 import shutil
+
+# Cleanup stale uploads after 1 hour
+UPLOAD_SESSION_TTL = 3600
+
+# File-based session storage (works with multiple gunicorn workers)
+import json
+import fcntl
+import subprocess
+import io
+from queue import Queue, Empty
+
+def _get_session_file(uploads_dir: Path, upload_id: str) -> Path:
+    """Get path to session metadata file."""
+    return uploads_dir / f"_chunked_{upload_id}" / "session.json"
+
+def _read_session(uploads_dir: Path, upload_id: str) -> dict | None:
+    """Read session from file with locking."""
+    session_file = _get_session_file(uploads_dir, upload_id)
+    if not session_file.exists():
+        return None
+    try:
+        with open(session_file, "r") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+            data = json.load(f)
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            # Convert received_chunks back to set
+            data["received_chunks"] = set(data.get("received_chunks", []))
+            return data
+    except Exception:
+        return None
+
+def _write_session(uploads_dir: Path, upload_id: str, session: dict) -> bool:
+    """Write session to file with locking."""
+    session_file = _get_session_file(uploads_dir, upload_id)
+    try:
+        session_file.parent.mkdir(parents=True, exist_ok=True)
+        # Convert set to list for JSON serialization
+        session_copy = session.copy()
+        session_copy["received_chunks"] = list(session.get("received_chunks", set()))
+        with open(session_file, "w") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            json.dump(session_copy, f)
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        return True
+    except Exception:
+        return False
+
+def _delete_session(uploads_dir: Path, upload_id: str) -> dict | None:
+    """Delete session and return its data."""
+    session = _read_session(uploads_dir, upload_id)
+    if session:
+        session_file = _get_session_file(uploads_dir, upload_id)
+        try:
+            session_file.unlink(missing_ok=True)
+        except Exception:
+            pass
+    return session
+
+
+# Analysis state storage
+def _get_analysis_dir(outputs_dir: Path, token: str) -> Path:
+    """Get path to analysis state directory."""
+    return outputs_dir / token
+
+def _get_analysis_state_file(outputs_dir: Path, token: str) -> Path:
+    """Get path to analysis state file."""
+    return _get_analysis_dir(outputs_dir, token) / "_analysis_state.json"
+
+def _get_analysis_log_file(outputs_dir: Path, token: str) -> Path:
+    """Get path to analysis log file."""
+    return _get_analysis_dir(outputs_dir, token) / "_analysis.log"
+
+def _read_analysis_state(outputs_dir: Path, token: str) -> dict | None:
+    """Read analysis state from file."""
+    state_file = _get_analysis_state_file(outputs_dir, token)
+    if not state_file.exists():
+        return None
+    try:
+        with open(state_file, "r") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+            data = json.load(f)
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            return data
+    except Exception:
+        return None
+
+def _write_analysis_state(outputs_dir: Path, token: str, state: dict) -> bool:
+    """Write analysis state to file."""
+    state_file = _get_analysis_state_file(outputs_dir, token)
+    try:
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(state_file, "w") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            json.dump(state, f)
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        return True
+    except Exception:
+        return False
+
+def _append_log(outputs_dir: Path, token: str, message: str) -> None:
+    """Append a log message to the analysis log file."""
+    log_file = _get_analysis_log_file(outputs_dir, token)
+    try:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(log_file, "a") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            f.write(f"{message}\n")
+            f.flush()
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+    except Exception:
+        pass
 
 
 def _project_root() -> Path:
@@ -188,7 +303,7 @@ def create_app() -> Flask:
         try:
             output_report_path = run_analysis(
                 str(tarball_path),
-                debug_mode=True,
+                debug_mode=False,
                 save_next_to_tarball=False,
                 output_dir_override=str(output_token_dir),
             )
@@ -204,6 +319,393 @@ def create_app() -> Flask:
 
         redirect_url = url_for("view_report", token=token, path=rel_path)
         return redirect(redirect_url)
+
+    # ========== Chunked Upload API ==========
+    
+    def _cleanup_stale_uploads():
+        """Remove upload sessions older than TTL"""
+        now = time.time()
+        uploads_dir = Path(app.config["UPLOAD_FOLDER"])
+        try:
+            for entry in uploads_dir.iterdir():
+                if entry.is_dir() and entry.name.startswith("_chunked_"):
+                    session_file = entry / "session.json"
+                    if session_file.exists():
+                        try:
+                            with open(session_file, "r") as f:
+                                data = json.load(f)
+                            if now - data.get("created", 0) > UPLOAD_SESSION_TTL:
+                                _remove_dir(entry)
+                        except Exception:
+                            # If we can't read it, check dir age
+                            try:
+                                if now - entry.stat().st_mtime > UPLOAD_SESSION_TTL:
+                                    _remove_dir(entry)
+                            except Exception:
+                                pass
+        except Exception:
+            pass
+    
+    @app.post("/api/upload/init")
+    def upload_init():
+        """Initialize a chunked upload session.
+        
+        Request JSON:
+            filename: Original filename
+            fileSize: Total file size in bytes
+            chunkSize: Size of each chunk (optional, default 5MB)
+        
+        Response JSON:
+            uploadId: Unique upload session ID
+            chunkSize: Confirmed chunk size
+        """
+        _cleanup_stale_uploads()
+        
+        data = request.get_json() or {}
+        filename = data.get("filename", "")
+        file_size = data.get("fileSize", 0)
+        chunk_size = data.get("chunkSize", 5 * 1024 * 1024)  # Default 5MB chunks
+        
+        if not filename:
+            return jsonify({"error": "Filename is required"}), 400
+        
+        if not allowed_tarball(filename):
+            return jsonify({"error": "Invalid file type. Only .tar.xz, .txz, .tar.gz, .tar.bz2, .tgz, and .tar files are accepted."}), 400
+        
+        max_size = app.config.get("MAX_CONTENT_LENGTH", 2 * 1024 * 1024 * 1024)
+        if file_size > max_size:
+            return jsonify({"error": f"File too large. Maximum size is {max_size // (1024*1024)} MB"}), 400
+        
+        upload_id = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:12]}"
+        
+        # Create temp directory for chunks
+        uploads_dir = Path(app.config["UPLOAD_FOLDER"])
+        temp_dir = uploads_dir / f"_chunked_{upload_id}"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        total_chunks = (file_size + chunk_size - 1) // chunk_size if file_size > 0 else 1
+        
+        session = {
+            "filename": secure_filename(filename),
+            "file_size": file_size,
+            "chunk_size": chunk_size,
+            "total_chunks": total_chunks,
+            "received_chunks": set(),
+            "temp_dir": str(temp_dir),
+            "created": time.time(),
+        }
+        
+        if not _write_session(uploads_dir, upload_id, session):
+            _remove_dir(temp_dir)
+            return jsonify({"error": "Failed to create upload session"}), 500
+        
+        return jsonify({
+            "uploadId": upload_id,
+            "chunkSize": chunk_size,
+            "totalChunks": total_chunks,
+        })
+    
+    @app.post("/api/upload/chunk")
+    def upload_chunk():
+        """Upload a single chunk.
+        
+        Form data:
+            uploadId: Upload session ID
+            chunkIndex: Zero-based chunk index
+            chunk: The file chunk data
+        
+        Response JSON:
+            received: Number of chunks received so far
+            totalChunks: Total expected chunks
+            complete: Whether all chunks have been received
+        """
+        upload_id = request.form.get("uploadId")
+        chunk_index = request.form.get("chunkIndex")
+        chunk_file = request.files.get("chunk")
+        
+        if not upload_id or chunk_index is None or not chunk_file:
+            return jsonify({"error": "Missing uploadId, chunkIndex, or chunk data"}), 400
+        
+        try:
+            chunk_index = int(chunk_index)
+        except ValueError:
+            return jsonify({"error": "Invalid chunkIndex"}), 400
+        
+        uploads_dir = Path(app.config["UPLOAD_FOLDER"])
+        session = _read_session(uploads_dir, upload_id)
+        if not session:
+            return jsonify({"error": "Upload session not found or expired"}), 404
+        
+        temp_dir = session["temp_dir"]
+        total_chunks = session["total_chunks"]
+        
+        if chunk_index < 0 or chunk_index >= total_chunks:
+            return jsonify({"error": f"Invalid chunkIndex. Expected 0-{total_chunks-1}"}), 400
+        
+        # Save chunk to temp directory
+        chunk_path = Path(temp_dir) / f"chunk_{chunk_index:06d}"
+        chunk_file.save(str(chunk_path))
+        
+        # Update session with new chunk
+        session["received_chunks"].add(chunk_index)
+        received = len(session["received_chunks"])
+        complete = received == total_chunks
+        
+        if not _write_session(uploads_dir, upload_id, session):
+            return jsonify({"error": "Failed to update session"}), 500
+        
+        return jsonify({
+            "received": received,
+            "totalChunks": total_chunks,
+            "complete": complete,
+        })
+    
+    def _run_analysis_with_logging(tarball_path: str, output_dir: str, token: str, outputs_dir: Path):
+        """Run analysis in background thread with logging."""
+        import sys
+        import io
+        
+        _append_log(outputs_dir, token, "Starting analysis...")
+        _append_log(outputs_dir, token, f"Input file: {Path(tarball_path).name}")
+        
+        try:
+            # Capture stdout/stderr during analysis
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            
+            class LogCapture(io.StringIO):
+                def __init__(self, token, outputs_dir, original):
+                    super().__init__()
+                    self.token = token
+                    self.outputs_dir = outputs_dir
+                    self.original = original
+                    self.buffer_line = ""
+                
+                def write(self, s):
+                    if self.original:
+                        self.original.write(s)
+                    # Buffer and write complete lines
+                    self.buffer_line += s
+                    while "\n" in self.buffer_line:
+                        line, self.buffer_line = self.buffer_line.split("\n", 1)
+                        if line.strip():
+                            _append_log(self.outputs_dir, self.token, line.strip())
+                    return len(s)
+                
+                def flush(self):
+                    if self.buffer_line.strip():
+                        _append_log(self.outputs_dir, self.token, self.buffer_line.strip())
+                        self.buffer_line = ""
+                    if self.original:
+                        self.original.flush()
+            
+            sys.stdout = LogCapture(token, outputs_dir, old_stdout)
+            sys.stderr = LogCapture(token, outputs_dir, old_stderr)
+            
+            try:
+                output_report_path = run_analysis(
+                    tarball_path,
+                    debug_mode=False,
+                    save_next_to_tarball=False,
+                    output_dir_override=output_dir,
+                )
+                
+                # Determine redirect URL
+                try:
+                    rel_path = str(Path(output_report_path).relative_to(output_dir))
+                except Exception:
+                    rel_path = "report.html"
+                
+                _append_log(outputs_dir, token, "Analysis complete!")
+                _append_log(outputs_dir, token, f"Report generated: {rel_path}")
+                
+                _write_analysis_state(outputs_dir, token, {
+                    "status": "complete",
+                    "report_path": rel_path,
+                    "completed_at": time.time(),
+                })
+                
+            finally:
+                sys.stdout.flush()
+                sys.stderr.flush()
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+                
+        except Exception as e:
+            _append_log(outputs_dir, token, f"ERROR: Analysis failed: {e}")
+            _write_analysis_state(outputs_dir, token, {
+                "status": "error",
+                "error": str(e),
+                "completed_at": time.time(),
+            })
+    
+    @app.post("/api/upload/complete")
+    def upload_complete():
+        """Finalize the upload and start analysis in background.
+        
+        Request JSON:
+            uploadId: Upload session ID
+        
+        Response JSON:
+            status: "processing"
+            token: Analysis token for tracking progress
+        """
+        data = request.get_json() or {}
+        upload_id = data.get("uploadId")
+        
+        if not upload_id:
+            return jsonify({"error": "uploadId is required"}), 400
+        
+        uploads_dir = Path(app.config["UPLOAD_FOLDER"])
+        session = _delete_session(uploads_dir, upload_id)
+        
+        if not session:
+            return jsonify({"error": "Upload session not found or expired"}), 404
+        
+        temp_dir = Path(session["temp_dir"])
+        filename = session["filename"]
+        total_chunks = session["total_chunks"]
+        received = session["received_chunks"]
+        
+        if len(received) != total_chunks:
+            missing = total_chunks - len(received)
+            _remove_dir(temp_dir)
+            return jsonify({"error": f"Upload incomplete. Missing {missing} chunks."}), 400
+        
+        # Create final upload directory
+        token = datetime.utcnow().strftime("%Y%m%d%H%M%S") + f"-{uuid.uuid4().hex[:8]}"
+        upload_token_dir = Path(app.config["UPLOAD_FOLDER"]) / token
+        output_token_dir = Path(app.config["OUTPUT_FOLDER"]) / token
+        upload_token_dir.mkdir(parents=True, exist_ok=True)
+        output_token_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Initialize analysis state
+        outputs_dir = Path(app.config["OUTPUT_FOLDER"])
+        _write_analysis_state(outputs_dir, token, {
+            "status": "processing",
+            "started_at": time.time(),
+            "filename": filename,
+        })
+        _append_log(outputs_dir, token, f"Reassembling file from {total_chunks} chunks...")
+        
+        # Reassemble file from chunks
+        tarball_path = upload_token_dir / filename
+        try:
+            with open(tarball_path, "wb") as outfile:
+                for i in range(total_chunks):
+                    chunk_path = temp_dir / f"chunk_{i:06d}"
+                    with open(chunk_path, "rb") as chunk:
+                        outfile.write(chunk.read())
+            _append_log(outputs_dir, token, f"File reassembled: {filename}")
+        except Exception as e:
+            _remove_dir(temp_dir)
+            _remove_dir(upload_token_dir)
+            _append_log(outputs_dir, token, f"ERROR: Failed to reassemble file: {e}")
+            _write_analysis_state(outputs_dir, token, {"status": "error", "error": str(e)})
+            return jsonify({"error": f"Failed to reassemble file: {e}"}), 500
+        finally:
+            # Clean up temp chunks directory
+            _remove_dir(temp_dir)
+        
+        # Start analysis in background thread
+        analysis_thread = threading.Thread(
+            target=_run_analysis_with_logging,
+            args=(str(tarball_path), str(output_token_dir), token, outputs_dir),
+            daemon=True,
+        )
+        analysis_thread.start()
+        
+        return jsonify({
+            "status": "processing",
+            "token": token,
+        })
+    
+    @app.get("/api/analysis/<token>/status")
+    def analysis_status(token: str):
+        """Get the current status of an analysis."""
+        outputs_dir = Path(app.config["OUTPUT_FOLDER"])
+        state = _read_analysis_state(outputs_dir, token)
+        
+        if not state:
+            return jsonify({"error": "Analysis not found"}), 404
+        
+        response = {"status": state.get("status", "unknown")}
+        
+        if state.get("status") == "complete":
+            rel_path = state.get("report_path", "report.html")
+            response["redirectUrl"] = url_for("view_report", token=token, path=rel_path)
+        elif state.get("status") == "error":
+            response["error"] = state.get("error", "Unknown error")
+        
+        return jsonify(response)
+    
+    @app.get("/api/analysis/<token>/logs")
+    def analysis_logs(token: str):
+        """Stream analysis logs via Server-Sent Events."""
+        outputs_dir = Path(app.config["OUTPUT_FOLDER"])
+        log_file = _get_analysis_log_file(outputs_dir, token)
+        
+        def generate():
+            last_position = 0
+            no_data_count = 0
+            
+            while True:
+                state = _read_analysis_state(outputs_dir, token)
+                
+                # Read new log lines
+                try:
+                    if log_file.exists():
+                        with open(log_file, "r") as f:
+                            f.seek(last_position)
+                            new_lines = f.read()
+                            last_position = f.tell()
+                        
+                        if new_lines:
+                            no_data_count = 0
+                            for line in new_lines.strip().split("\n"):
+                                if line:
+                                    yield f"data: {json.dumps({'type': 'log', 'message': line})}\n\n"
+                except Exception:
+                    pass
+                
+                # Check if analysis is complete
+                if state and state.get("status") in ("complete", "error"):
+                    if state.get("status") == "complete":
+                        rel_path = state.get("report_path", "report.html")
+                        redirect_url = url_for("view_report", token=token, path=rel_path)
+                        yield f"data: {json.dumps({'type': 'complete', 'redirectUrl': redirect_url})}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'type': 'error', 'error': state.get('error', 'Unknown error')})}\n\n"
+                    break
+                
+                # Heartbeat to keep connection alive
+                no_data_count += 1
+                if no_data_count >= 10:  # Every ~5 seconds
+                    yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+                    no_data_count = 0
+                
+                time.sleep(0.5)
+        
+        return Response(
+            stream_with_context(generate()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
+    
+    @app.delete("/api/upload/<upload_id>")
+    def upload_cancel(upload_id: str):
+        """Cancel an in-progress upload and clean up."""
+        uploads_dir = Path(app.config["UPLOAD_FOLDER"])
+        session = _delete_session(uploads_dir, upload_id)
+        
+        if session and session.get("temp_dir"):
+            _remove_dir(Path(session["temp_dir"]))
+        
+        return jsonify({"status": "ok"})
 
     def _collect_reports() -> list[dict]:
         """Enumerate saved reports under OUTPUT_FOLDER."""
