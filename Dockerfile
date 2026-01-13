@@ -56,4 +56,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/ || exit 1
 
 # Run the application with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "webapp.wsgi:application"]
+# Timeout set high (30min) for large file extraction/analysis
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "1800", "--graceful-timeout", "1800", "--keep-alive", "75", "--workers", "2", "webapp.wsgi:application"]

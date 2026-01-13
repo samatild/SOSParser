@@ -80,11 +80,54 @@
       </footer>
     </div>
 
-    <div id="loading-overlay" class="loading-overlay" style="display:none;">
-      <div class="loading-content">
-        <div class="spinner"></div>
-        <p>Analyzing sosreport...</p>
-        <p class="loading-subtext">This may take a few minutes</p>
+    <div id="upload-overlay" class="upload-overlay" style="display:none;">
+      <div class="upload-content">
+        <div class="upload-header">
+          <span class="upload-icon">📤</span>
+          <h2 id="upload-title">Uploading File</h2>
+        </div>
+        
+        <div class="upload-progress-container">
+          <div class="upload-progress-bar">
+            <div class="upload-progress-fill" id="upload-progress-fill" style="width: 0%"></div>
+          </div>
+          <div class="upload-progress-text">
+            <span id="upload-percentage">0%</span>
+            <span id="upload-speed"></span>
+          </div>
+        </div>
+        
+        <div class="upload-stats">
+          <div class="upload-stat">
+            <span class="stat-label">Uploaded</span>
+            <span class="stat-value" id="upload-bytes">0 B / 0 B</span>
+          </div>
+          <div class="upload-stat">
+            <span class="stat-label">Time Remaining</span>
+            <span class="stat-value" id="upload-eta">Calculating...</span>
+          </div>
+        </div>
+        
+        <p class="upload-status" id="upload-status">Preparing upload...</p>
+        
+        <!-- Collapsible Console -->
+        <div class="console-container" id="console-container">
+          <button type="button" class="console-toggle" id="console-toggle">
+            <span class="console-toggle-icon">▶</span>
+            <span class="console-toggle-text">Show Console Output</span>
+          </button>
+          <div class="console-panel" id="console-panel">
+            <div class="console-header">
+              <span class="console-title">Console Output</span>
+              <button type="button" class="console-clear" id="console-clear" title="Clear">⌫</button>
+            </div>
+            <div class="console-output" id="console-output">
+              <div class="console-line console-info">Waiting for analysis to start...</div>
+            </div>
+          </div>
+        </div>
+        
+        <button type="button" class="btn-cancel" id="cancel-upload-btn">Cancel Upload</button>
       </div>
     </div>
 
@@ -103,22 +146,362 @@
     <div id="browser-backdrop" class="browser-backdrop" style="display:none;"></div>
 
     <script>
-      // Show loading overlay on form submit
-      document.getElementById('analyze-form').addEventListener('submit', function() {
-        document.getElementById('loading-overlay').style.display = 'flex';
+      // ========== Chunked Upload System ==========
+      const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+      let currentUpload = null;
+
+      // Format bytes for display
+      function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      }
+
+      // Format time remaining
+      function formatETA(seconds) {
+        if (!seconds || seconds === Infinity || seconds < 0) return 'Calculating...';
+        if (seconds < 60) return `${Math.ceil(seconds)}s`;
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.ceil(seconds % 60)}s`;
+        const hours = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        return `${hours}h ${mins}m`;
+      }
+
+      // ========== Console Functions ==========
+      let consoleExpanded = false;
+      
+      function toggleConsole(forceState) {
+        const panel = document.getElementById('console-panel');
+        const toggle = document.getElementById('console-toggle');
+        const icon = toggle.querySelector('.console-toggle-icon');
+        const text = toggle.querySelector('.console-toggle-text');
+        
+        consoleExpanded = forceState !== undefined ? forceState : !consoleExpanded;
+        
+        if (consoleExpanded) {
+          panel.classList.add('expanded');
+          icon.textContent = '▼';
+          text.textContent = 'Hide Console Output';
+        } else {
+          panel.classList.remove('expanded');
+          icon.textContent = '▶';
+          text.textContent = 'Show Console Output';
+        }
+      }
+      
+      function clearConsole() {
+        document.getElementById('console-output').innerHTML = '';
+      }
+      
+      function addConsoleLine(message, type = 'default') {
+        const output = document.getElementById('console-output');
+        const line = document.createElement('div');
+        line.className = `console-line console-${type}`;
+        line.textContent = message;
+        output.appendChild(line);
+        // Auto-scroll to bottom
+        output.scrollTop = output.scrollHeight;
+      }
+      
+      // Console event handlers
+      document.getElementById('console-toggle').addEventListener('click', () => toggleConsole());
+      document.getElementById('console-clear').addEventListener('click', clearConsole);
+
+      // Chunked uploader class
+      class ChunkedUploader {
+        constructor(file) {
+          this.file = file;
+          this.uploadId = null;
+          this.totalChunks = 0;
+          this.uploadedChunks = 0;
+          this.uploadedBytes = 0;
+          this.startTime = null;
+          this.cancelled = false;
+          this.speedSamples = [];
+          this.lastSampleTime = 0;
+          this.lastSampleBytes = 0;
+        }
+
+        updateProgress() {
+          const percentage = Math.round((this.uploadedBytes / this.file.size) * 100);
+          const now = Date.now();
+          
+          // Calculate speed (sample every 500ms)
+          if (now - this.lastSampleTime >= 500) {
+            const bytesDelta = this.uploadedBytes - this.lastSampleBytes;
+            const timeDelta = (now - this.lastSampleTime) / 1000;
+            const speed = bytesDelta / timeDelta;
+            
+            this.speedSamples.push(speed);
+            if (this.speedSamples.length > 10) this.speedSamples.shift();
+            
+            this.lastSampleTime = now;
+            this.lastSampleBytes = this.uploadedBytes;
+          }
+          
+          // Average speed from samples
+          const avgSpeed = this.speedSamples.length > 0 
+            ? this.speedSamples.reduce((a, b) => a + b, 0) / this.speedSamples.length 
+            : 0;
+          
+          // Calculate ETA
+          const remainingBytes = this.file.size - this.uploadedBytes;
+          const eta = avgSpeed > 0 ? remainingBytes / avgSpeed : Infinity;
+
+          // Update UI
+          document.getElementById('upload-progress-fill').style.width = `${percentage}%`;
+          document.getElementById('upload-percentage').textContent = `${percentage}%`;
+          document.getElementById('upload-speed').textContent = avgSpeed > 0 ? `${formatBytes(avgSpeed)}/s` : '';
+          document.getElementById('upload-bytes').textContent = `${formatBytes(this.uploadedBytes)} / ${formatBytes(this.file.size)}`;
+          document.getElementById('upload-eta').textContent = formatETA(eta);
+          document.getElementById('upload-status').textContent = 'Uploading...';
+        }
+
+        async init() {
+          const response = await fetch('/api/upload/init', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: this.file.name,
+              fileSize: this.file.size,
+              chunkSize: CHUNK_SIZE,
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to initialize upload');
+          }
+
+          const data = await response.json();
+          this.uploadId = data.uploadId;
+          this.totalChunks = data.totalChunks;
+          return data;
+        }
+
+        async uploadChunk(chunkIndex) {
+          if (this.cancelled) throw new Error('Upload cancelled');
+
+          const start = chunkIndex * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, this.file.size);
+          const chunk = this.file.slice(start, end);
+
+          const formData = new FormData();
+          formData.append('uploadId', this.uploadId);
+          formData.append('chunkIndex', chunkIndex);
+          formData.append('chunk', chunk);
+
+          const response = await fetch('/api/upload/chunk', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || `Failed to upload chunk ${chunkIndex}`);
+          }
+
+          this.uploadedChunks++;
+          this.uploadedBytes = Math.min(end, this.file.size);
+          this.updateProgress();
+
+          return response.json();
+        }
+
+        async complete() {
+          document.getElementById('upload-status').textContent = 'Starting analysis...';
+          document.getElementById('upload-title').textContent = 'Analyzing Report';
+          document.getElementById('upload-progress-fill').classList.add('analyzing');
+          
+          // Show and expand console for analysis phase
+          document.getElementById('console-container').style.display = 'block';
+          toggleConsole(true);
+          clearConsole();
+          addConsoleLine('Finalizing upload...', 'info');
+
+          const response = await fetch('/api/upload/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uploadId: this.uploadId }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to complete upload');
+          }
+
+          const result = await response.json();
+          
+          if (result.status === 'processing' && result.token) {
+            // Connect to SSE log stream
+            addConsoleLine('Connecting to analysis stream...', 'info');
+            return await this.streamLogs(result.token);
+          }
+          
+          return result;
+        }
+        
+        async streamLogs(token) {
+          return new Promise((resolve, reject) => {
+            const eventSource = new EventSource(`/api/analysis/${token}/logs`);
+            
+            eventSource.onmessage = (event) => {
+              try {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'log') {
+                  addConsoleLine(data.message);
+                  document.getElementById('upload-status').textContent = 'Analyzing...';
+                } else if (data.type === 'complete') {
+                  eventSource.close();
+                  addConsoleLine('Analysis complete! Redirecting...', 'success');
+                  resolve({ redirectUrl: data.redirectUrl });
+                } else if (data.type === 'error') {
+                  eventSource.close();
+                  addConsoleLine(`Error: ${data.error}`, 'error');
+                  reject(new Error(data.error));
+                }
+                // Ignore heartbeat messages
+              } catch (e) {
+                console.warn('Failed to parse SSE message:', e);
+              }
+            };
+            
+            eventSource.onerror = (err) => {
+              eventSource.close();
+              addConsoleLine('Connection to analysis stream lost', 'error');
+              // Try polling for status instead
+              this.pollStatus(token).then(resolve).catch(reject);
+            };
+          });
+        }
+        
+        async pollStatus(token) {
+          addConsoleLine('Polling for analysis status...', 'info');
+          while (true) {
+            try {
+              const response = await fetch(`/api/analysis/${token}/status`);
+              const data = await response.json();
+              
+              if (data.status === 'complete') {
+                addConsoleLine('Analysis complete!', 'success');
+                return { redirectUrl: data.redirectUrl };
+              } else if (data.status === 'error') {
+                throw new Error(data.error || 'Analysis failed');
+              }
+            } catch (e) {
+              if (e.message !== 'Analysis failed') {
+                console.warn('Status poll error:', e);
+              } else {
+                throw e;
+              }
+            }
+            await new Promise(r => setTimeout(r, 2000));
+          }
+        }
+
+        async cancel() {
+          this.cancelled = true;
+          if (this.uploadId) {
+            try {
+              await fetch(`/api/upload/${this.uploadId}`, { method: 'DELETE' });
+            } catch (e) {
+              console.warn('Failed to cancel upload on server:', e);
+            }
+          }
+        }
+
+        async start() {
+          this.startTime = Date.now();
+          this.lastSampleTime = Date.now();
+          this.lastSampleBytes = 0;
+
+          // Initialize upload session
+          await this.init();
+
+          // Upload chunks sequentially (could be parallelized for better speed)
+          for (let i = 0; i < this.totalChunks; i++) {
+            if (this.cancelled) throw new Error('Upload cancelled');
+            await this.uploadChunk(i);
+          }
+
+          // Complete and analyze
+          return await this.complete();
+        }
+      }
+
+      // Handle form submission
+      document.getElementById('analyze-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('sosreport_file');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+          alert('Please select a file first.');
+          return;
+        }
+
+        // Show upload overlay
+        const overlay = document.getElementById('upload-overlay');
+        overlay.style.display = 'flex';
+        
+        // Reset UI state
+        document.getElementById('upload-title').textContent = 'Uploading File';
+        document.getElementById('upload-progress-fill').style.width = '0%';
+        document.getElementById('upload-progress-fill').classList.remove('analyzing');
+        document.getElementById('upload-percentage').textContent = '0%';
+        document.getElementById('upload-speed').textContent = '';
+        document.getElementById('upload-bytes').textContent = `0 B / ${formatBytes(file.size)}`;
+        document.getElementById('upload-eta').textContent = 'Calculating...';
+        document.getElementById('upload-status').textContent = 'Initializing upload...';
+        document.getElementById('cancel-upload-btn').style.display = 'block';
+        
+        // Reset console (hidden during upload, shown during analysis)
+        document.getElementById('console-container').style.display = 'none';
+        clearConsole();
+        toggleConsole(false);
+
+        currentUpload = new ChunkedUploader(file);
+
+        try {
+          const result = await currentUpload.start();
+          
+          if (result.redirectUrl) {
+            window.location.href = result.redirectUrl;
+          }
+        } catch (err) {
+          overlay.style.display = 'none';
+          if (err.message !== 'Upload cancelled') {
+            alert('Upload failed: ' + err.message);
+          }
+        } finally {
+          currentUpload = null;
+        }
+      });
+
+      // Cancel upload button
+      document.getElementById('cancel-upload-btn').addEventListener('click', async function() {
+        if (currentUpload) {
+          await currentUpload.cancel();
+          document.getElementById('upload-overlay').style.display = 'none';
+        }
       });
 
       // Update file input display
       document.getElementById('sosreport_file').addEventListener('change', function(e) {
         const display = document.querySelector('.file-text');
         if (e.target.files.length > 0) {
-          display.textContent = e.target.files[0].name;
+          const file = e.target.files[0];
+          display.textContent = `${file.name} (${formatBytes(file.size)})`;
         } else {
-          display.textContent = 'Select sosreport file...';
+          display.textContent = 'Select file...';
         }
       });
 
-      // Report browser
+      // ========== Report Browser ==========
       const browseBtn = document.getElementById('browse-reports-btn');
       const browser = document.getElementById('report-browser');
       const backdrop = document.getElementById('browser-backdrop');
