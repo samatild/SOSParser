@@ -6,8 +6,8 @@ set -e
 echo "🐳 Building SOSParser Docker Image..."
 echo ""
 
-# Build the image
-docker build -t sosparser:latest .
+# Build the image (no cache to ensure latest changes are included)
+docker build --no-cache -t sosparser:latest .
 
 echo ""
 echo "✅ Build complete!"
