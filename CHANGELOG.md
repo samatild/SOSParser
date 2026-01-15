@@ -14,6 +14,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom scenario configuration via JSON
 
 
+## [0.2.11] - 2026-01-15
+
+### Added
+- **OS End-of-Life Status Badge**: Reports now display a real-time support status badge next to the OS version in the header
+  - Client-side integration with [endoflife.date](https://endoflife.date) API (no server load)
+  - Color-coded badges: green (Supported/LTS), red (End of Life), orange (Extended Support), gray (Unknown)
+  - Clickable badge links to the distribution's official release policy page
+  - Supports major distributions: RHEL, CentOS, Rocky, AlmaLinux, Fedora, Oracle Linux, Debian, Ubuntu, SLES, openSUSE, Amazon Linux, Alpine, Arch
+  - Works for both sosreport and supportconfig formats
+
+### Changed
+- **Content Security Policy**: Added `connect-src` directive to allow browser-side API calls to endoflife.date
+
+---
+
 ## [0.2.10] - 2026-01-13
 
 ### Added
@@ -306,8 +321,9 @@ Future releases will include:
 
 ---
 
-[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.10...HEAD
-[0.2.10]: https://github.com/samatild/SOSParser/releases/tag/v0.2.10
+[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.11...HEAD
+[0.2.11]: https://github.com/samatild/SOSParser/releases/tag/v0.2.11
+[0.2.10]: https://github.com/samatild/SOSParser/compare/v0.2.10...v0.2.11
 [0.2.9]: https://github.com/samatild/SOSParser/compare/v0.2.9...v0.2.10
 [0.2.8]: https://github.com/samatild/SOSParser/compare/v0.2.8...v0.2.9
 [0.2.7]: https://github.com/samatild/SOSParser/compare/v0.2.7...v0.2.8
