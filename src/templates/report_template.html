@@ -31,7 +31,12 @@
                             <div class="info-item">
                                 <span class="label">OS:</span>
                                 <span class="value">{{ summary.os_info.PRETTY_NAME | default('Unknown') }}</span>
+                                <span id="eol-status-container" class="eol-status-container"></span>
                             </div>
+                            <!-- Hidden element for EOL checker JS to read OS data -->
+                            <div id="os-eol-data" hidden
+                                 data-os-id="{{ summary.os_info.ID | default('') }}"
+                                 data-version-id="{{ summary.os_info.VERSION_ID | default('') }}"></div>
                             <div class="info-item">
                                 <span class="label">Report Generated:</span>
                                 <span class="value">{{ execution_timestamp }} UTC</span>
@@ -2193,5 +2198,6 @@
     </div>
 
     <script src="scripts/main.js"></script>
+    <script src="scripts/eol-checker.js"></script>
 </body>
 </html>
