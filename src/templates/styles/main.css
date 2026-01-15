@@ -647,3 +647,87 @@ ul {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-primary);
 }
+
+/* End-of-Life Status Badges */
+.eol-status-container {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+}
+
+.eol-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  cursor: help;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+  text-decoration: none;
+}
+
+a.eol-badge {
+  cursor: pointer;
+}
+
+a.eol-badge:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+
+.eol-badge:hover {
+  opacity: 0.9;
+}
+
+.eol-supported {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.eol-supported-lts {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.eol-unsupported {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.eol-esm {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.eol-unknown {
+  background: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
+  border: 1px solid rgba(107, 114, 128, 0.4);
+}
+
+.eol-error {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
+  border: 1px solid rgba(107, 114, 128, 0.3);
+  font-style: italic;
+}
+
+.eol-loading {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  animation: eol-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes eol-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
