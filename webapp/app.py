@@ -825,6 +825,7 @@ def create_app() -> Flask:
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:; "
             "font-src 'self'; "
+            "connect-src 'self' https://endoflife.date; "
             "object-src 'none'; "
             "base-uri 'none'; "
             "frame-ancestors 'none'"
