@@ -237,6 +237,9 @@ def create_app() -> Flask:
 
     # Basic config
     app.config["SECRET_KEY"] = os.environ.get("WEBAPP_SECRET_KEY", "sosparser-dev-key")
+    # Public mode: no report storage, no saved reports browser
+    public_mode = os.environ.get("PUBLIC_MODE", "false").lower() in ("true", "1", "yes")
+    app.config["PUBLIC_MODE"] = public_mode
     base_dir = Path(__file__).parent
     uploads_dir = base_dir / "uploads"
     outputs_dir = base_dir / "outputs"
@@ -265,13 +268,21 @@ def create_app() -> Flask:
     def report_images(filename: str):
         return send_from_directory(str(report_images_dir), filename, as_attachment=False)
 
-    # Cleanup uploads/ on startup (keep outputs for persistence)
+    # Cleanup uploads/ on startup
     _cleanup_dir_contents(uploads_dir)
+    # In public mode, also cleanup outputs/ on startup (no persistence)
+    if public_mode:
+        _cleanup_dir_contents(outputs_dir)
 
     @app.get("/")
     def index():
         exec_ts = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        return render_template("index.html", execution_timestamp=exec_ts, version=__version__)
+        return render_template(
+            "index.html",
+            execution_timestamp=exec_ts,
+            version=__version__,
+            public_mode=app.config["PUBLIC_MODE"],
+        )
 
     @app.post("/analyze")
     def analyze():
@@ -753,11 +764,17 @@ def create_app() -> Flask:
     @app.get("/api/reports")
     def list_reports():
         """List saved reports for browsing."""
+        if app.config["PUBLIC_MODE"]:
+            # Public mode: report storage disabled
+            return jsonify({"items": [], "public_mode": True})
         return jsonify({"items": _collect_reports()})
 
     @app.delete("/api/reports/<token>")
     def delete_report(token: str):
         """Delete a saved report by token."""
+        if app.config["PUBLIC_MODE"]:
+            # Public mode: manual deletion disabled
+            abort(403)
         output_root = Path(app.config["OUTPUT_FOLDER"]).resolve()
         base = (output_root / secure_filename(token)).resolve()
         try:
@@ -804,8 +821,11 @@ def create_app() -> Flask:
         html = html.replace("src=\"images/", "src=\"/report-assets/images/")
         html = html.replace("href=\"images/", "href=\"/report-assets/images/")
 
-        # Cleanup uploads after response (keep outputs persistent)
+        # Cleanup uploads after response
+        # In public mode, also cleanup outputs (no persistence)
         uploads_token_dir = Path(app.config["UPLOAD_FOLDER"]) / secure_filename(token)
+        outputs_token_dir = Path(app.config["OUTPUT_FOLDER"]) / secure_filename(token)
+        is_public_mode = app.config["PUBLIC_MODE"]
 
         @after_this_request
         def _cleanup(response):
@@ -813,6 +833,12 @@ def create_app() -> Flask:
                 _remove_dir(uploads_token_dir)
             except Exception:
                 pass
+            if is_public_mode:
+                # Public mode: remove outputs after viewing (no storage)
+                try:
+                    _remove_dir(outputs_token_dir)
+                except Exception:
+                    pass
             return response
 
         script_nonce = secrets.token_urlsafe(16)

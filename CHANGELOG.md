@@ -14,6 +14,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom scenario configuration via JSON
 
 
+## [0.2.12] - 2026-01-15
+
+### Added
+- **Public Mode**: New deployment mode for public-facing instances with enhanced privacy
+  - Enable via `PUBLIC_MODE=true` environment variable (Docker runtime configurable)
+  - Reports are generated once, displayed once, then automatically deleted
+  - "Saved Reports" browser hidden from UI
+  - Report listing and deletion API endpoints disabled
+  - Output directory cleaned on startup (no leftover data from crashes)
+  - Ideal for public demo deployments where no data should be retained
+
+### Changed
+- **Build Script**: Added `--run-public` parameter to `docker-build.sh` for quick public mode testing
+- **Documentation**: Updated README with Public Mode vs Private Mode deployment instructions
+
+---
+
 ## [0.2.11] - 2026-01-15
 
 ### Added
@@ -321,8 +338,9 @@ Future releases will include:
 
 ---
 
-[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.11...HEAD
-[0.2.11]: https://github.com/samatild/SOSParser/releases/tag/v0.2.11
+[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.12...HEAD
+[0.2.12]: https://github.com/samatild/SOSParser/releases/tag/v0.2.12
+[0.2.11]: https://github.com/samatild/SOSParser/compare/v0.2.11...v0.2.12
 [0.2.10]: https://github.com/samatild/SOSParser/compare/v0.2.10...v0.2.11
 [0.2.9]: https://github.com/samatild/SOSParser/compare/v0.2.9...v0.2.10
 [0.2.8]: https://github.com/samatild/SOSParser/compare/v0.2.8...v0.2.9
