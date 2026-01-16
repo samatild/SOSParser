@@ -18,7 +18,9 @@
               <p class="format-support">Supports SOSReport & Supportconfig formats</p>
             </div>
             <div class="header-actions">
+              {% if not public_mode %}
               <button type="button" class="btn-secondary" id="browse-reports-btn">Saved Reports</button>
+              {% endif %}
               <a class="icon-link" href="https://github.com/samatild/SOSParser" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
                 <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" class="icon-svg">
                   <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
@@ -131,6 +133,7 @@
       </div>
     </div>
 
+    {% if not public_mode %}
     <div id="report-browser" class="report-browser">
       <div class="browser-header">
         <div>
@@ -144,6 +147,7 @@
       </div>
     </div>
     <div id="browser-backdrop" class="browser-backdrop" style="display:none;"></div>
+    {% endif %}
 
     <script>
       // ========== Chunked Upload System ==========
@@ -501,95 +505,97 @@
         }
       });
 
-      // ========== Report Browser ==========
+      // ========== Report Browser (only in non-public mode) ==========
       const browseBtn = document.getElementById('browse-reports-btn');
-      const browser = document.getElementById('report-browser');
-      const backdrop = document.getElementById('browser-backdrop');
-      const closeBtn = document.getElementById('close-browser-btn');
-      const reportList = document.getElementById('report-list');
+      if (browseBtn) {
+        const browser = document.getElementById('report-browser');
+        const backdrop = document.getElementById('browser-backdrop');
+        const closeBtn = document.getElementById('close-browser-btn');
+        const reportList = document.getElementById('report-list');
 
-      function closeBrowser() {
-        browser.classList.remove('active');
-        backdrop.style.display = 'none';
-      }
-
-      function openBrowser() {
-        browser.classList.add('active');
-        backdrop.style.display = 'block';
-        loadReports();
-      }
-
-      async function loadReports() {
-        reportList.innerHTML = '<p class="browser-loading">Loading...</p>';
-        try {
-          const res = await fetch('/api/reports');
-          if (!res.ok) throw new Error('Failed to load reports');
-          const data = await res.json();
-          renderReports(data.items || []);
-        } catch (err) {
-          reportList.innerHTML = '<p class="browser-error">Failed to load reports.</p>';
+        function closeBrowser() {
+          browser.classList.remove('active');
+          backdrop.style.display = 'none';
         }
-      }
 
-      function renderReports(items) {
-        if (!items.length) {
-          reportList.innerHTML = '<p class="browser-empty">No reports found.</p>';
-          return;
+        function openBrowser() {
+          browser.classList.add('active');
+          backdrop.style.display = 'block';
+          loadReports();
         }
-        const frag = document.createDocumentFragment();
-        items.forEach((item) => {
-          const name = (item.path || 'report.html').split('/')[0] || 'report';
-          const row = document.createElement('div');
-          row.className = 'report-row';
 
-          const info = document.createElement('div');
-          info.className = 'report-info';
-          const title = document.createElement('div');
-          title.className = 'report-token';
-          title.textContent = name;
-          const meta = document.createElement('div');
-          meta.className = 'report-meta';
-          const ts = item.modified ? new Date(item.modified).toLocaleString() : '';
-          const size = item.size ? ` · ${Math.max(1, Math.round(item.size / 1024))} KB` : '';
-          meta.textContent = `${item.path || 'report.html'}${ts ? ' · ' + ts : ''}${size}`;
-          info.appendChild(title);
-          info.appendChild(meta);
+        async function loadReports() {
+          reportList.innerHTML = '<p class="browser-loading">Loading...</p>';
+          try {
+            const res = await fetch('/api/reports');
+            if (!res.ok) throw new Error('Failed to load reports');
+            const data = await res.json();
+            renderReports(data.items || []);
+          } catch (err) {
+            reportList.innerHTML = '<p class="browser-error">Failed to load reports.</p>';
+          }
+        }
 
-          const actions = document.createElement('div');
-          actions.className = 'report-actions';
+        function renderReports(items) {
+          if (!items.length) {
+            reportList.innerHTML = '<p class="browser-empty">No reports found.</p>';
+            return;
+          }
+          const frag = document.createDocumentFragment();
+          items.forEach((item) => {
+            const name = (item.path || 'report.html').split('/')[0] || 'report';
+            const row = document.createElement('div');
+            row.className = 'report-row';
 
-          const openBtn = document.createElement('a');
-          openBtn.className = 'btn-link';
-          openBtn.href = item.url || `/view/${encodeURIComponent(item.token)}?path=${encodeURIComponent(item.path || 'report.html')}`;
-          openBtn.textContent = 'Open';
-          actions.appendChild(openBtn);
+            const info = document.createElement('div');
+            info.className = 'report-info';
+            const title = document.createElement('div');
+            title.className = 'report-token';
+            title.textContent = name;
+            const meta = document.createElement('div');
+            meta.className = 'report-meta';
+            const ts = item.modified ? new Date(item.modified).toLocaleString() : '';
+            const size = item.size ? ` · ${Math.max(1, Math.round(item.size / 1024))} KB` : '';
+            meta.textContent = `${item.path || 'report.html'}${ts ? ' · ' + ts : ''}${size}`;
+            info.appendChild(title);
+            info.appendChild(meta);
 
-          const delBtn = document.createElement('button');
-          delBtn.className = 'btn-link danger';
-          delBtn.textContent = 'Delete';
-          delBtn.addEventListener('click', async () => {
-            if (!confirm('Delete this report?')) return;
-            try {
-              const res = await fetch(`/api/reports/${encodeURIComponent(item.token)}`, { method: 'DELETE' });
-              if (!res.ok) throw new Error();
-              loadReports();
-            } catch (err) {
-              alert('Failed to delete report.');
-            }
+            const actions = document.createElement('div');
+            actions.className = 'report-actions';
+
+            const openBtn = document.createElement('a');
+            openBtn.className = 'btn-link';
+            openBtn.href = item.url || `/view/${encodeURIComponent(item.token)}?path=${encodeURIComponent(item.path || 'report.html')}`;
+            openBtn.textContent = 'Open';
+            actions.appendChild(openBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn-link danger';
+            delBtn.textContent = 'Delete';
+            delBtn.addEventListener('click', async () => {
+              if (!confirm('Delete this report?')) return;
+              try {
+                const res = await fetch(`/api/reports/${encodeURIComponent(item.token)}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error();
+                loadReports();
+              } catch (err) {
+                alert('Failed to delete report.');
+              }
+            });
+            actions.appendChild(delBtn);
+
+            row.appendChild(info);
+            row.appendChild(actions);
+            frag.appendChild(row);
           });
-          actions.appendChild(delBtn);
+          reportList.innerHTML = '';
+          reportList.appendChild(frag);
+        }
 
-          row.appendChild(info);
-          row.appendChild(actions);
-          frag.appendChild(row);
-        });
-        reportList.innerHTML = '';
-        reportList.appendChild(frag);
+        browseBtn.addEventListener('click', openBrowser);
+        closeBtn.addEventListener('click', closeBrowser);
+        backdrop.addEventListener('click', closeBrowser);
       }
-
-      browseBtn.addEventListener('click', openBrowser);
-      closeBtn.addEventListener('click', closeBrowser);
-      backdrop.addEventListener('click', closeBrowser);
     </script>
   </body>
 </html>
