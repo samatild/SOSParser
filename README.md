@@ -44,6 +44,37 @@ Then open http://localhost:8000 in your browser.
 
 
 
+#### Public Mode (No Data Retention)
+
+For public-facing deployments where you don't want to store any user data, enable **Public Mode**:
+
+```bash
+docker run -d -p 8000:8000 --name sosparser \
+  -e PUBLIC_MODE=true \
+  samuelmatildes/sosparser:latest
+```
+
+In Public Mode:
+- Reports are generated once, displayed once, then automatically deleted
+- The "Saved Reports" browser is hidden from the UI
+- No uploaded files or generated reports are persisted
+- Output directory is cleaned on container startup
+
+This is ideal for demo instances or public services where privacy is a concern.
+
+#### Private Mode (Default)
+
+By default, SOSParser runs in **Private Mode** where reports are saved and can be browsed:
+
+```bash
+docker run -d -p 8000:8000 --name sosparser samuelmatildes/sosparser:latest
+```
+
+In Private Mode:
+- Reports are saved in `/app/webapp/outputs/`
+- "Saved Reports" button allows browsing and managing generated reports
+- Use volume mounts (see above) to persist data across container restarts
+
 ## Usage
 
 ### Web Interface
