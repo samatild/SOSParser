@@ -1,12 +1,14 @@
-## [0.2.11] - 2026-01-15
+## [0.2.12] - 2026-01-15
 
 ### Added
-- **OS End-of-Life Status Badge**: Reports now display a real-time support status badge next to the OS version in the header
-  - Client-side integration with [endoflife.date](https://endoflife.date) API (no server load)
-  - Color-coded badges: green (Supported/LTS), red (End of Life), orange (Extended Support), gray (Unknown)
-  - Clickable badge links to the distribution's official release policy page
-  - Supports major distributions: RHEL, CentOS, Rocky, AlmaLinux, Fedora, Oracle Linux, Debian, Ubuntu, SLES, openSUSE, Amazon Linux, Alpine, Arch
-  - Works for both sosreport and supportconfig formats
+- **Public Mode**: New deployment mode for public-facing instances with enhanced privacy
+  - Enable via `PUBLIC_MODE=true` environment variable (Docker runtime configurable)
+  - Reports are generated once, displayed once, then automatically deleted
+  - "Saved Reports" browser hidden from UI
+  - Report listing and deletion API endpoints disabled
+  - Output directory cleaned on startup (no leftover data from crashes)
+  - Ideal for public demo deployments where no data should be retained
 
 ### Changed
-- **Content Security Policy**: Added `connect-src` directive to allow browser-side API calls to endoflife.date
+- **Build Script**: Added `--run-public` parameter to `docker-build.sh` for quick public mode testing
+- **Documentation**: Updated README with Public Mode vs Private Mode deployment instructions
