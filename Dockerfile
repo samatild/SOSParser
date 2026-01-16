@@ -47,6 +47,8 @@ ENV FLASK_APP=webapp/app.py
 ENV PYTHONUNBUFFERED=1
 ENV WEBAPP_HOST=0.0.0.0
 ENV WEBAPP_PORT=8000
+# Public mode: set to "true" to disable report storage and saved reports browser
+ENV PUBLIC_MODE=false
 
 # Expose port
 EXPOSE 8000
