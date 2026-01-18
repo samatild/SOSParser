@@ -1492,19 +1492,33 @@
 
                 <div id="lvm" class="subtab-content">
                     <h3>LVM Configuration</h3>
-                    {% if filesystem.lvm %}
+                    {% if filesystem.lvm and (filesystem.lvm.pvs or filesystem.lvm.vgs or filesystem.lvm.lvs or filesystem.lvm.vgdisplay or filesystem.lvm.pvdisplay or filesystem.lvm.lvdisplay) %}
                         {% if filesystem.lvm.pvs %}
-                        <h4>Physical Volumes</h4>
+                        <h4>Physical Volumes (pvs)</h4>
                         <pre>{{ filesystem.lvm.pvs }}</pre>
                         {% endif %}
                         {% if filesystem.lvm.vgs %}
-                        <h4>Volume Groups</h4>
+                        <h4>Volume Groups (vgs)</h4>
                         <pre>{{ filesystem.lvm.vgs }}</pre>
                         {% endif %}
                         {% if filesystem.lvm.lvs %}
-                        <h4>Logical Volumes</h4>
+                        <h4>Logical Volumes (lvs)</h4>
                         <pre>{{ filesystem.lvm.lvs }}</pre>
                         {% endif %}
+                        {% if filesystem.lvm.vgdisplay %}
+                        <h4>Volume Group Details (vgdisplay)</h4>
+                        <pre>{{ filesystem.lvm.vgdisplay }}</pre>
+                        {% endif %}
+                        {% if filesystem.lvm.pvdisplay %}
+                        <h4>Physical Volume Details (pvdisplay)</h4>
+                        <pre>{{ filesystem.lvm.pvdisplay }}</pre>
+                        {% endif %}
+                        {% if filesystem.lvm.lvdisplay %}
+                        <h4>Logical Volume Details (lvdisplay)</h4>
+                        <pre>{{ filesystem.lvm.lvdisplay }}</pre>
+                        {% endif %}
+                    {% elif filesystem.lvm.note %}
+                    <p>{{ filesystem.lvm.note }}</p>
                     {% else %}
                     <p>No LVM data available</p>
                     {% endif %}
