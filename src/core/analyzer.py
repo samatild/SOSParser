@@ -12,6 +12,7 @@ from analyzers.system.summary import SOSReportSummaryAnalyzer
 from analyzers.system.system_info import get_execution_timestamp
 from analyzers.system.system_config import SystemConfigAnalyzer
 from analyzers.filesystem.filesystem import FilesystemAnalyzer
+from analyzers.filesystem.lvm_visualizer import generate_lvm_svg
 from analyzers.network.network import NetworkAnalyzer
 from analyzers.logs.logs import LogAnalyzer
 from analyzers.cloud.cloud import CloudAnalyzer
@@ -249,9 +250,11 @@ class SOSReportAnalyzer:
                 
                 # Analyze filesystem
                 Logger.debug("Analyzing filesystem.")
+                lvm_data = self.filesystem_analyzer.analyze_lvm(extracted_dir)
                 filesystem = {
                     'mounts': self.filesystem_analyzer.analyze_mounts(extracted_dir),
-                    'lvm': self.filesystem_analyzer.analyze_lvm(extracted_dir),
+                    'lvm': lvm_data,
+                    'lvm_diagram': generate_lvm_svg(lvm_data),
                     'disk_usage': self.filesystem_analyzer.analyze_disk_usage(extracted_dir),
                     'filesystems': self.filesystem_analyzer.analyze_filesystems(extracted_dir),
                 }

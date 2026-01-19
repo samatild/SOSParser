@@ -41,26 +41,75 @@ class FilesystemAnalyzer:
         Logger.debug("Analyzing LVM configuration")
         
         data = {}
+        lvm2_dir = base_path / 'sos_commands' / 'lvm2'
         
-        # PV display
-        pvs = base_path / 'sos_commands' / 'lvm2' / 'pvs_-a_-o_pv_all'
-        if pvs.exists():
-            data['pvs'] = pvs.read_text()
-        
-        # VG display
-        vgs = base_path / 'sos_commands' / 'lvm2' / 'vgs_-a_-o_vg_all'
-        if vgs.exists():
-            data['vgs'] = vgs.read_text()
-        
-        # LV display
-        lvs = base_path / 'sos_commands' / 'lvm2' / 'lvs_-a_-o_lv_all'
-        if lvs.exists():
-            data['lvs'] = lvs.read_text()
+        if lvm2_dir.exists():
+            # Find pvs output (filename varies by sosreport version)
+            pvs_files = list(lvm2_dir.glob('pvs_*'))
+            if pvs_files:
+                # Prefer the most detailed one (usually the longest filename)
+                pvs_file = max(pvs_files, key=lambda f: len(f.name))
+                try:
+                    data['pvs'] = pvs_file.read_text()
+                except Exception:
+                    pass
+            
+            # Find vgs output
+            vgs_files = list(lvm2_dir.glob('vgs_*'))
+            if vgs_files:
+                vgs_file = max(vgs_files, key=lambda f: len(f.name))
+                try:
+                    data['vgs'] = vgs_file.read_text()
+                except Exception:
+                    pass
+            
+            # Find lvs output
+            lvs_files = list(lvm2_dir.glob('lvs_*'))
+            if lvs_files:
+                lvs_file = max(lvs_files, key=lambda f: len(f.name))
+                try:
+                    data['lvs'] = lvs_file.read_text()
+                except Exception:
+                    pass
+            
+            # Find vgdisplay output (contains detailed VG and LV info)
+            vgdisplay_files = list(lvm2_dir.glob('vgdisplay_*'))
+            if vgdisplay_files:
+                vgdisplay_file = max(vgdisplay_files, key=lambda f: len(f.name))
+                try:
+                    data['vgdisplay'] = vgdisplay_file.read_text()
+                except Exception:
+                    pass
+            
+            # Find pvdisplay output
+            pvdisplay_files = list(lvm2_dir.glob('pvdisplay_*'))
+            if pvdisplay_files:
+                pvdisplay_file = max(pvdisplay_files, key=lambda f: len(f.name))
+                try:
+                    data['pvdisplay'] = pvdisplay_file.read_text()
+                except Exception:
+                    pass
+            
+            # Find lvdisplay output
+            lvdisplay_files = list(lvm2_dir.glob('lvdisplay_*'))
+            if lvdisplay_files:
+                lvdisplay_file = max(lvdisplay_files, key=lambda f: len(f.name))
+                try:
+                    data['lvdisplay'] = lvdisplay_file.read_text()
+                except Exception:
+                    pass
         
         # LVM config
         lvm_conf = base_path / 'etc' / 'lvm' / 'lvm.conf'
         if lvm_conf.exists():
-            data['lvm_conf'] = lvm_conf.read_text()
+            try:
+                data['lvm_conf'] = lvm_conf.read_text()
+            except Exception:
+                pass
+        
+        # If no LVM data found, add a note
+        if not data:
+            data['note'] = 'No LVM configuration detected in sosreport'
         
         return data
     
