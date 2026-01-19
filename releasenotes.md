@@ -1,14 +1,16 @@
-## [0.2.12] - 2026-01-15
+## [0.2.13] - 2026-01-15
 
 ### Added
-- **Public Mode**: New deployment mode for public-facing instances with enhanced privacy
-  - Enable via `PUBLIC_MODE=true` environment variable (Docker runtime configurable)
-  - Reports are generated once, displayed once, then automatically deleted
-  - "Saved Reports" browser hidden from UI
-  - Report listing and deletion API endpoints disabled
-  - Output directory cleaned on startup (no leftover data from crashes)
-  - Ideal for public demo deployments where no data should be retained
+- **LVM Topology Visualization**: New SVG diagram showing LVM structure in the Filesystem → LVM tab
+  - Visual representation of Physical Volumes (PV) → Volume Groups (VG) → Logical Volumes (LV)
+  - Color-coded boxes: red for PVs, green for VGs, blue for LVs
+  - Displays size information for each component
+  - Multi-row layout for systems with many LVs (max 4 per row to prevent horizontal overflow)
+  - Pure SVG implementation with no external dependencies
+  - Works for both sosreport and supportconfig formats
 
-### Changed
-- **Build Script**: Added `--run-public` parameter to `docker-build.sh` for quick public mode testing
-- **Documentation**: Updated README with Public Mode vs Private Mode deployment instructions
+### Fixed
+- **LVM Data Not Showing (sosreport)**: Fixed LVM subtab showing empty for sosreport files
+  - Updated file matching to use glob patterns (`pvs_*`, `vgs_*`, `lvs_*`) instead of exact filenames
+  - sosreport command output filenames vary by version and include full command arguments
+  - Added support for `vgdisplay`, `pvdisplay`, `lvdisplay` detailed output files

@@ -14,6 +14,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom scenario configuration via JSON
 
 
+## [0.2.13] - 2026-01-15
+
+### Added
+- **LVM Topology Visualization**: New SVG diagram showing LVM structure in the Filesystem → LVM tab
+  - Visual representation of Physical Volumes (PV) → Volume Groups (VG) → Logical Volumes (LV)
+  - Color-coded boxes: red for PVs, green for VGs, blue for LVs
+  - Displays size information for each component
+  - Multi-row layout for systems with many LVs (max 4 per row to prevent horizontal overflow)
+  - Pure SVG implementation with no external dependencies
+  - Works for both sosreport and supportconfig formats
+
+### Fixed
+- **LVM Data Not Showing (sosreport)**: Fixed LVM subtab showing empty for sosreport files
+  - Updated file matching to use glob patterns (`pvs_*`, `vgs_*`, `lvs_*`) instead of exact filenames
+  - sosreport command output filenames vary by version and include full command arguments
+  - Added support for `vgdisplay`, `pvdisplay`, `lvdisplay` detailed output files
+
+---
+
 ## [0.2.12] - 2026-01-15
 
 ### Added
@@ -338,8 +357,9 @@ Future releases will include:
 
 ---
 
-[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.12...HEAD
-[0.2.12]: https://github.com/samatild/SOSParser/releases/tag/v0.2.12
+[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.13...HEAD
+[0.2.13]: https://github.com/samatild/SOSParser/releases/tag/v0.2.13
+[0.2.12]: https://github.com/samatild/SOSParser/compare/v0.2.12...v0.2.13
 [0.2.11]: https://github.com/samatild/SOSParser/compare/v0.2.11...v0.2.12
 [0.2.10]: https://github.com/samatild/SOSParser/compare/v0.2.10...v0.2.11
 [0.2.9]: https://github.com/samatild/SOSParser/compare/v0.2.9...v0.2.10
