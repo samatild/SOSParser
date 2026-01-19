@@ -1493,6 +1493,12 @@
                 <div id="lvm" class="subtab-content">
                     <h3>LVM Configuration</h3>
                     {% if filesystem.lvm and (filesystem.lvm.pvs or filesystem.lvm.vgs or filesystem.lvm.lvs or filesystem.lvm.vgdisplay or filesystem.lvm.pvdisplay or filesystem.lvm.lvdisplay) %}
+                        {% if filesystem.lvm_diagram %}
+                        <h4>LVM Topology</h4>
+                        <div class="lvm-diagram-container" style="overflow-x: auto; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px; margin-bottom: 1.5rem;">
+                            {{ filesystem.lvm_diagram | safe }}
+                        </div>
+                        {% endif %}
                         {% if filesystem.lvm.pvs %}
                         <h4>Physical Volumes (pvs)</h4>
                         <pre>{{ filesystem.lvm.pvs }}</pre>
