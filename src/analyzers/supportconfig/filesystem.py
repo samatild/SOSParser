@@ -10,6 +10,7 @@ from .filesystem_analyzers.lvm import LvmAnalyzer
 from .filesystem_analyzers.filesystem_types import FilesystemTypesAnalyzer
 from .filesystem_analyzers.nfs import NfsAnalyzer
 from .filesystem_analyzers.samba import SambaAnalyzer
+from analyzers.filesystem.lvm_visualizer import generate_lvm_svg
 
 
 class SupportconfigFilesystem:
@@ -32,12 +33,14 @@ class SupportconfigFilesystem:
         Returns:
             Dictionary with filesystem information
         """
+        lvm_data = LvmAnalyzer(self.root_path, self.parser).analyze()
         return {
             'mounts': MountsAnalyzer(self.root_path, self.parser).analyze(),
             'disk_usage': (
                 DiskUsageAnalyzer(self.root_path, self.parser).analyze()
             ),
-            'lvm': LvmAnalyzer(self.root_path, self.parser).analyze(),
+            'lvm': lvm_data,
+            'lvm_diagram': generate_lvm_svg(lvm_data),
             'filesystems': FilesystemTypesAnalyzer(
                 self.root_path, self.parser).analyze(),
             'nfs': NfsAnalyzer(self.root_path, self.parser).analyze(),
