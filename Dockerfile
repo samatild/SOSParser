@@ -49,6 +49,11 @@ ENV WEBAPP_HOST=0.0.0.0
 ENV WEBAPP_PORT=8000
 # Public mode: set to "true" to disable report storage and saved reports browser
 ENV PUBLIC_MODE=false
+# Log parsing limits (lines to read from end of each log file)
+# Default: 1000 lines, recommended max: 5000 for browser performance
+ENV LOG_LINES_DEFAULT=1000
+ENV LOG_LINES_PRIMARY=1000
+ENV LOG_LINES_SECONDARY=500
 
 # Expose port
 EXPOSE 8000
