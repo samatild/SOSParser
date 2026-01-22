@@ -41,6 +41,26 @@ class SupportconfigParser:
         except Exception:
             return None
     
+    def read_file_tail(self, filename: str, lines: int = 1000) -> Optional[str]:
+        """
+        Read the last N lines from a supportconfig .txt file.
+        
+        Args:
+            filename: Name of the .txt file (e.g., 'messages.txt')
+            lines: Number of lines to read from the end (default 1000)
+            
+        Returns:
+            Last N lines of file contents or None if file doesn't exist
+        """
+        file_path = self.root_path / filename
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                all_lines = f.readlines()
+                tail_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+                return ''.join(tail_lines)
+        except Exception:
+            return None
+    
     def extract_sections(self, content: str) -> List[Dict[str, str]]:
         """
         Extract sections from supportconfig file content.
