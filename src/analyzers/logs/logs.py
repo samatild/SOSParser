@@ -1,8 +1,18 @@
 #!/usr/bin/env python3
 """Log file analysis from sosreport"""
 
+import os
 from pathlib import Path
 from utils.logger import Logger
+
+
+# Configurable log line limits via environment variables
+# Default: 1000 lines, Max recommended: 5000 for browser performance
+DEFAULT_LOG_LINES = int(os.environ.get('LOG_LINES_DEFAULT', '1000'))
+# Some logs may warrant more lines (e.g., journal, messages)
+PRIMARY_LOG_LINES = int(os.environ.get('LOG_LINES_PRIMARY', str(DEFAULT_LOG_LINES)))
+# Secondary logs can have fewer lines (e.g., cron, mail)
+SECONDARY_LOG_LINES = int(os.environ.get('LOG_LINES_SECONDARY', str(DEFAULT_LOG_LINES // 2)))
 
 
 class LogAnalyzer:
@@ -17,17 +27,17 @@ class LogAnalyzer:
         # messages
         messages = base_path / 'var' / 'log' / 'messages'
         if messages.exists():
-            data['messages'] = self._tail_file(messages, 200)
+            data['messages'] = self._tail_file(messages, PRIMARY_LOG_LINES)
         
         # syslog
         syslog = base_path / 'var' / 'log' / 'syslog'
         if syslog.exists():
-            data['syslog'] = self._tail_file(syslog, 200)
+            data['syslog'] = self._tail_file(syslog, PRIMARY_LOG_LINES)
         
         # Boot log
         boot_log = base_path / 'var' / 'log' / 'boot.log'
         if boot_log.exists():
-            data['boot_log'] = self._tail_file(boot_log, 100)
+            data['boot_log'] = self._tail_file(boot_log, SECONDARY_LOG_LINES)
         
         return data
     
@@ -42,12 +52,12 @@ class LogAnalyzer:
         if not dmesg.exists():
             dmesg = base_path / 'var' / 'log' / 'dmesg'
         if dmesg.exists():
-            data['dmesg'] = self._tail_file(dmesg, 200)
+            data['dmesg'] = self._tail_file(dmesg, PRIMARY_LOG_LINES)
         
         # kern.log
         kern_log = base_path / 'var' / 'log' / 'kern.log'
         if kern_log.exists():
-            data['kern_log'] = self._tail_file(kern_log, 200)
+            data['kern_log'] = self._tail_file(kern_log, PRIMARY_LOG_LINES)
         
         return data
     
@@ -60,17 +70,17 @@ class LogAnalyzer:
         # secure
         secure = base_path / 'var' / 'log' / 'secure'
         if secure.exists():
-            data['secure'] = self._tail_file(secure, 200)
+            data['secure'] = self._tail_file(secure, PRIMARY_LOG_LINES)
         
         # auth.log
         auth_log = base_path / 'var' / 'log' / 'auth.log'
         if auth_log.exists():
-            data['auth_log'] = self._tail_file(auth_log, 200)
+            data['auth_log'] = self._tail_file(auth_log, PRIMARY_LOG_LINES)
         
         # audit log
         audit_log = base_path / 'var' / 'log' / 'audit' / 'audit.log'
         if audit_log.exists():
-            data['audit_log'] = self._tail_file(audit_log, 100)
+            data['audit_log'] = self._tail_file(audit_log, SECONDARY_LOG_LINES)
         
         # lastlog
         lastlog = base_path / 'sos_commands' / 'login' / 'lastlog_-t_999999'
@@ -87,36 +97,38 @@ class LogAnalyzer:
         
         data = {}
         
-        # Journal log
+        # Journal log - primary importance
         journal = base_path / 'sos_commands' / 'logs' / 'journalctl_--no-pager'
         if not journal.exists():
             journal = base_path / 'sos_commands' / 'systemd' / 'journalctl_--no-pager_--boot'
         if journal.exists():
-            data['journal'] = self._tail_file(journal, 200)
+            data['journal'] = self._tail_file(journal, PRIMARY_LOG_LINES)
         
         # Cron log
         cron = base_path / 'var' / 'log' / 'cron'
         if cron.exists():
-            data['cron'] = self._tail_file(cron, 100)
+            data['cron'] = self._tail_file(cron, SECONDARY_LOG_LINES)
         
         # Mail log
         maillog = base_path / 'var' / 'log' / 'maillog'
         if maillog.exists():
-            data['maillog'] = self._tail_file(maillog, 100)
+            data['maillog'] = self._tail_file(maillog, SECONDARY_LOG_LINES)
         
         # YUM/DNF log
         yum_log = base_path / 'var' / 'log' / 'yum.log'
         if yum_log.exists():
-            data['yum_log'] = self._tail_file(yum_log, 100)
+            data['yum_log'] = self._tail_file(yum_log, SECONDARY_LOG_LINES)
         
         dnf_log = base_path / 'var' / 'log' / 'dnf.log'
         if dnf_log.exists():
-            data['dnf_log'] = self._tail_file(dnf_log, 100)
+            data['dnf_log'] = self._tail_file(dnf_log, SECONDARY_LOG_LINES)
         
         return data
     
-    def _tail_file(self, file_path: Path, lines: int = 100) -> str:
+    def _tail_file(self, file_path: Path, lines: int = None) -> str:
         """Read last N lines from a file"""
+        if lines is None:
+            lines = DEFAULT_LOG_LINES
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 all_lines = f.readlines()

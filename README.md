@@ -75,6 +75,27 @@ In Private Mode:
 - "Saved Reports" button allows browsing and managing generated reports
 - Use volume mounts (see above) to persist data across container restarts
 
+#### Configuring Log Line Limits
+
+By default, SOSParser reads the last **1000 lines** from each log file. You can adjust this via environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOG_LINES_DEFAULT` | 1000 | Fallback default for all logs |
+| `LOG_LINES_PRIMARY` | 1000 | Primary logs (messages, syslog, dmesg, journal, auth) |
+| `LOG_LINES_SECONDARY` | 500 | Secondary logs (boot, cron, mail, yum/dnf, audit) |
+
+Example with increased limits:
+
+```bash
+docker run -d -p 8000:8000 --name sosparser \
+  -e LOG_LINES_PRIMARY=2000 \
+  -e LOG_LINES_SECONDARY=1000 \
+  samuelmatildes/sosparser:latest
+```
+
+> **Note**: For browser performance, we recommend keeping limits under 5000 lines. Higher values may cause slower rendering on older devices.
+
 ## Usage
 
 ### Web Interface
