@@ -60,6 +60,9 @@
             {% if cloud %}
             <button class="tab-button" data-tab="cloud">Cloud</button>
             {% endif %}
+            {% if updates and updates.package_manager %}
+            <button class="tab-button" data-tab="updates">Updates</button>
+            {% endif %}
             <button class="tab-button" data-tab="crash">Crash</button>
             <button class="tab-button" data-tab="logs">Logs</button>
         </nav>
@@ -1307,6 +1310,348 @@
                     {% endif %}
                 </div>
             </section>
+
+            <!-- Updates Tab (conditional) -->
+            {% if updates and updates.package_manager %}
+            <section id="updates" class="tab-content">
+                <h2>Package Updates</h2>
+                
+                {% if updates.package_manager == 'dnf' and updates.dnf %}
+                <nav class="subtabs">
+                    <button class="subtab-button active" data-subtab="updates-available">Available Updates</button>
+                    <button class="subtab-button" data-subtab="updates-security">Security Advisories</button>
+                    <button class="subtab-button" data-subtab="updates-repos">Repositories</button>
+                    <button class="subtab-button" data-subtab="updates-history">History</button>
+                    <button class="subtab-button" data-subtab="updates-modules">Modules</button>
+                </nav>
+
+                <div id="updates-available" class="subtab-content active">
+                    <h3>Available Updates</h3>
+                    {% if updates.dnf.update_summary %}
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <h4>Update Summary</h4>
+                            <table class="info-table">
+                                <tr>
+                                    <td class="label">Total Updates Available</td>
+                                    <td class="value">{{ updates.dnf.update_summary.total }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Security Updates</td>
+                                    <td class="value {% if updates.dnf.update_summary.security > 0 %}status-warning{% endif %}">{{ updates.dnf.update_summary.security }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Bug Fixes</td>
+                                    <td class="value">{{ updates.dnf.update_summary.bugfix }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Important Severity</td>
+                                    <td class="value {% if updates.dnf.update_summary.important > 0 %}status-critical{% endif %}">{{ updates.dnf.update_summary.important }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Moderate Severity</td>
+                                    <td class="value {% if updates.dnf.update_summary.moderate > 0 %}status-warning{% endif %}">{{ updates.dnf.update_summary.moderate }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if updates.dnf.available_updates %}
+                    <h4>Update List</h4>
+                    <pre>{{ updates.dnf.available_updates }}</pre>
+                    {% else %}
+                    <p>No updates available or update information not collected.</p>
+                    {% endif %}
+                </div>
+
+                <div id="updates-security" class="subtab-content">
+                    <h3>Security Advisories</h3>
+                    {% if updates.dnf.security_summary and updates.dnf.security_summary.cve_count > 0 %}
+                    <div class="info-card" style="margin-bottom: 1rem;">
+                        <h4>Security Summary</h4>
+                        <p><strong>{{ updates.dnf.security_summary.cve_count }}</strong> CVEs addressed by available updates</p>
+                        {% if updates.dnf.security_summary.cves %}
+                        <p><strong>CVEs:</strong> {{ updates.dnf.security_summary.cves | join(', ') }}</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if updates.dnf.security_advisories %}
+                    <pre>{{ updates.dnf.security_advisories }}</pre>
+                    {% else %}
+                    <p>No security advisory information available.</p>
+                    {% endif %}
+                </div>
+
+                <div id="updates-repos" class="subtab-content">
+                    <h3>Repositories</h3>
+                    {% if updates.dnf.repolist %}
+                    <h4>Repository List</h4>
+                    <pre>{{ updates.dnf.repolist }}</pre>
+                    {% endif %}
+                    {% if updates.dnf.repolist_verbose %}
+                    <h4>Verbose Repository Information</h4>
+                    <pre>{{ updates.dnf.repolist_verbose }}</pre>
+                    {% endif %}
+                    {% if not updates.dnf.repolist and not updates.dnf.repolist_verbose %}
+                    <p>No repository information available.</p>
+                    {% endif %}
+                </div>
+
+                <div id="updates-history" class="subtab-content">
+                    <h3>Update History</h3>
+                    {% if updates.dnf.history %}
+                    <pre>{{ updates.dnf.history }}</pre>
+                    {% else %}
+                    <p>No update history available.</p>
+                    {% endif %}
+                </div>
+
+                <div id="updates-modules" class="subtab-content">
+                    <h3>DNF Modules</h3>
+                    {% if updates.dnf.module_installed %}
+                    <h4>Installed Modules</h4>
+                    <pre>{{ updates.dnf.module_installed }}</pre>
+                    {% endif %}
+                    {% if updates.dnf.module_list %}
+                    <h4>Available Modules</h4>
+                    <pre>{{ updates.dnf.module_list }}</pre>
+                    {% endif %}
+                    {% if updates.dnf.package_problems %}
+                    <h4>Package Problems</h4>
+                    <pre>{{ updates.dnf.package_problems }}</pre>
+                    {% endif %}
+                    {% if updates.dnf.package_dupes %}
+                    <h4>Duplicate Packages</h4>
+                    <pre>{{ updates.dnf.package_dupes }}</pre>
+                    {% endif %}
+                    {% if not updates.dnf.module_installed and not updates.dnf.module_list %}
+                    <p>No module information available.</p>
+                    {% endif %}
+                </div>
+
+                {% elif updates.package_manager == 'apt' and updates.apt %}
+                <nav class="subtabs">
+                    <button class="subtab-button active" data-subtab="apt-sources">Repositories</button>
+                    <button class="subtab-button" data-subtab="apt-policy">APT Policy</button>
+                    <button class="subtab-button" data-subtab="apt-stats">Cache Stats</button>
+                    <button class="subtab-button" data-subtab="apt-config">Configuration</button>
+                </nav>
+
+                <div id="apt-sources" class="subtab-content active">
+                    <h3>APT Repositories</h3>
+                    {% if updates.apt.sources %}
+                        {% if updates.apt.sources.sources_list %}
+                        <h4>/etc/apt/sources.list</h4>
+                        <pre>{{ updates.apt.sources.sources_list }}</pre>
+                        {% endif %}
+                        
+                        {% if updates.apt.sources.sources_list_d %}
+                        <h4>/etc/apt/sources.list.d/</h4>
+                        {% for filename, content in updates.apt.sources.sources_list_d.items() %}
+                        <h5>{{ filename }}</h5>
+                        <pre>{{ content }}</pre>
+                        {% endfor %}
+                        {% endif %}
+                        
+                        {% if updates.apt.sources.mirrors %}
+                        <h4>Mirror Configuration</h4>
+                        {% for filename, content in updates.apt.sources.mirrors.items() %}
+                        <h5>{{ filename }}</h5>
+                        <pre>{{ content }}</pre>
+                        {% endfor %}
+                        {% endif %}
+                        
+                        {% if updates.apt.sources.preferences %}
+                        <h4>Package Pinning (preferences)</h4>
+                        <pre>{{ updates.apt.sources.preferences }}</pre>
+                        {% endif %}
+                        
+                        {% if updates.apt.sources.preferences_d %}
+                        <h4>Package Pinning (preferences.d)</h4>
+                        {% for filename, content in updates.apt.sources.preferences_d.items() %}
+                        <h5>{{ filename }}</h5>
+                        <pre>{{ content }}</pre>
+                        {% endfor %}
+                        {% endif %}
+                    {% else %}
+                    <p>No APT sources configuration available.</p>
+                    {% endif %}
+                    
+                    {% if updates.apt.held_packages %}
+                    <h4>Held Packages</h4>
+                    <pre>{{ updates.apt.held_packages }}</pre>
+                    {% endif %}
+                </div>
+
+                <div id="apt-policy" class="subtab-content">
+                    <h3>APT Policy</h3>
+                    {% if updates.apt.policy %}
+                    <pre>{{ updates.apt.policy }}</pre>
+                    {% else %}
+                    <p>No APT policy information available.</p>
+                    {% endif %}
+                </div>
+
+                <div id="apt-stats" class="subtab-content">
+                    <h3>Cache Statistics</h3>
+                    {% if updates.apt.cache_stats %}
+                    <pre>{{ updates.apt.cache_stats }}</pre>
+                    {% else %}
+                    <p>No cache statistics available.</p>
+                    {% endif %}
+                    {% if updates.apt.check %}
+                    <h4>APT Check</h4>
+                    <pre>{{ updates.apt.check }}</pre>
+                    {% endif %}
+                </div>
+
+                <div id="apt-config" class="subtab-content">
+                    <h3>APT Configuration</h3>
+                    {% if updates.apt.config %}
+                    <pre>{{ updates.apt.config }}</pre>
+                    {% else %}
+                    <p>No configuration available.</p>
+                    {% endif %}
+                </div>
+
+                {% elif updates.package_manager == 'yum' and updates.yum %}
+                <h3>YUM Package Manager</h3>
+                {% if updates.yum.repolist %}
+                <h4>Repositories</h4>
+                <pre>{{ updates.yum.repolist }}</pre>
+                {% endif %}
+                {% if updates.yum.history %}
+                <h4>Update History</h4>
+                <pre>{{ updates.yum.history }}</pre>
+                {% endif %}
+                {% for key, value in updates.yum.items() %}
+                {% if key not in ['repolist', 'history'] and value %}
+                <h4>{{ key }}</h4>
+                <pre>{{ value }}</pre>
+                {% endif %}
+                {% endfor %}
+
+                {% elif updates.package_manager == 'zypper' and updates.zypper %}
+                <nav class="subtabs">
+                    <button class="subtab-button active" data-subtab="zypper-patches">Patches</button>
+                    <button class="subtab-button" data-subtab="zypper-updates">Available Updates</button>
+                    <button class="subtab-button" data-subtab="zypper-repos">Repositories</button>
+                    <button class="subtab-button" data-subtab="zypper-products">Products</button>
+                    <button class="subtab-button" data-subtab="zypper-lifecycle">Lifecycle</button>
+                </nav>
+
+                <div id="zypper-patches" class="subtab-content active">
+                    <h3>Patches</h3>
+                    {% if updates.zypper.patch_summary %}
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <h4>Patch Summary</h4>
+                            <table class="info-table">
+                                <tr>
+                                    <td class="label">Total Patches Needed</td>
+                                    <td class="value">{{ updates.zypper.patch_summary.total }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Security Patches</td>
+                                    <td class="value {% if updates.zypper.patch_summary.security > 0 %}status-warning{% endif %}">{{ updates.zypper.patch_summary.security }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Recommended Patches</td>
+                                    <td class="value">{{ updates.zypper.patch_summary.recommended }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Optional Patches</td>
+                                    <td class="value">{{ updates.zypper.patch_summary.optional }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if updates.zypper.patch_check %}
+                    <h4>Patch Check</h4>
+                    <pre>{{ updates.zypper.patch_check }}</pre>
+                    {% endif %}
+                    {% if updates.zypper.list_patches %}
+                    <h4>Patches List</h4>
+                    <pre>{{ updates.zypper.list_patches }}</pre>
+                    {% elif updates.zypper.patches %}
+                    <h4>Patches</h4>
+                    <pre>{{ updates.zypper.patches }}</pre>
+                    {% else %}
+                    <p>No patch information available.</p>
+                    {% endif %}
+                </div>
+
+                <div id="zypper-updates" class="subtab-content">
+                    <h3>Available Updates</h3>
+                    {% if updates.zypper.update_count is defined %}
+                    <div class="info-card" style="margin-bottom: 1rem;">
+                        <p><strong>{{ updates.zypper.update_count }}</strong> package updates available</p>
+                    </div>
+                    {% endif %}
+                    {% if updates.zypper.list_updates %}
+                    <pre>{{ updates.zypper.list_updates }}</pre>
+                    {% else %}
+                    <p>No update information available.</p>
+                    {% endif %}
+                    {% if updates.zypper.orphaned %}
+                    <h4>Orphaned Packages</h4>
+                    <pre>{{ updates.zypper.orphaned }}</pre>
+                    {% endif %}
+                </div>
+
+                <div id="zypper-repos" class="subtab-content">
+                    <h3>Repositories</h3>
+                    {% if updates.zypper.repos %}
+                    <pre>{{ updates.zypper.repos }}</pre>
+                    {% else %}
+                    <p>No repository information available.</p>
+                    {% endif %}
+                    {% if updates.zypper.services %}
+                    <h4>Services (Modules)</h4>
+                    <pre>{{ updates.zypper.services }}</pre>
+                    {% endif %}
+                    {% if updates.zypper.locks %}
+                    <h4>Package Locks</h4>
+                    <pre>{{ updates.zypper.locks }}</pre>
+                    {% endif %}
+                </div>
+
+                <div id="zypper-products" class="subtab-content">
+                    <h3>Products</h3>
+                    {% if updates.zypper.products %}
+                    <pre>{{ updates.zypper.products }}</pre>
+                    {% else %}
+                    <p>No product information available.</p>
+                    {% endif %}
+                    {% if updates.zypper.suseconnect_status %}
+                    <h4>SUSEConnect Status</h4>
+                    <pre>{{ updates.zypper.suseconnect_status }}</pre>
+                    {% endif %}
+                    {% if updates.zypper.products_dir %}
+                    <h4>Products Directory</h4>
+                    <pre>{{ updates.zypper.products_dir }}</pre>
+                    {% endif %}
+                    {% if updates.zypper.patterns %}
+                    <h4>Installed Patterns</h4>
+                    <pre>{{ updates.zypper.patterns }}</pre>
+                    {% endif %}
+                </div>
+
+                <div id="zypper-lifecycle" class="subtab-content">
+                    <h3>Product Lifecycle</h3>
+                    {% if updates.zypper.lifecycle %}
+                    <pre>{{ updates.zypper.lifecycle }}</pre>
+                    {% else %}
+                    <p>No lifecycle information available.</p>
+                    {% endif %}
+                </div>
+
+                {% else %}
+                <p>No package manager data available.</p>
+                {% endif %}
+            </section>
+            {% endif %}
 
             <!-- Crash Tab -->
             <section id="crash" class="tab-content">
