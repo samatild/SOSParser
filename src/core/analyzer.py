@@ -16,6 +16,7 @@ from analyzers.filesystem.lvm_visualizer import generate_lvm_svg
 from analyzers.network.network import NetworkAnalyzer
 from analyzers.logs.logs import LogAnalyzer
 from analyzers.cloud.cloud import CloudAnalyzer
+from analyzers.updates.updates import UpdatesAnalyzer
 from analyzers.scenarios.scenario_analyzer import BaseScenarioAnalyzer
 
 # Supportconfig analyzers
@@ -25,6 +26,8 @@ from analyzers.supportconfig.network import SupportconfigNetwork
 from analyzers.supportconfig.filesystem import SupportconfigFilesystem
 from analyzers.supportconfig.cloud import SupportconfigCloud
 from analyzers.supportconfig.logs import SupportconfigLogs
+from analyzers.supportconfig.updates import SupportconfigUpdates
+from analyzers.supportconfig.parser import SupportconfigParser
 
 from reporting.report_generator import (
     prepare_report_data,
@@ -83,6 +86,7 @@ class SOSReportAnalyzer:
         self.network_analyzer = NetworkAnalyzer()
         self.log_analyzer = LogAnalyzer()
         self.cloud_analyzer = CloudAnalyzer()
+        self.updates_analyzer = UpdatesAnalyzer()
         Logger.debug("Analyzers initialized.")
         
         # Initialize scenario analyzers
@@ -126,6 +130,10 @@ class SOSReportAnalyzer:
         fs_analyzer = SupportconfigFilesystem(extracted_dir)
         cloud_analyzer = SupportconfigCloud(extracted_dir)
         logs_analyzer = SupportconfigLogs(extracted_dir)
+        
+        # Initialize updates analyzer with parser
+        parser = SupportconfigParser(extracted_dir)
+        updates_analyzer = SupportconfigUpdates(parser)
         
         # Get complete summary data using dedicated summary analyzer
         summary_analyzer = SupportconfigSummaryAnalyzer(extracted_dir)
@@ -174,10 +182,14 @@ class SOSReportAnalyzer:
         # Analyze cloud information
         cloud = cloud_analyzer.analyze()
         
+        # Analyze updates (zypper)
+        Logger.debug("Analyzing updates (supportconfig)")
+        updates = updates_analyzer.analyze()
+        
         # Construct enhanced summary for supportconfig
         # Summary is already populated by the summary analyzer
 
-        return (summary, system_config, filesystem, network, logs, cloud)
+        return (summary, system_config, filesystem, network, logs, cloud, updates)
     
     def generate_report(self):
         """Generate the analysis report"""
@@ -302,10 +314,14 @@ class SOSReportAnalyzer:
                         cloud['oracle'] = self.cloud_analyzer.analyze_oracle_cloud(extracted_dir)
                 else:
                     Logger.debug("No cloud provider detected, skipping cloud analysis.")
+                
+                # Analyze updates (DNF/YUM/APT)
+                Logger.debug("Analyzing updates.")
+                updates = self.updates_analyzer.analyze(extracted_dir)
                     
             elif format_type == 'supportconfig':
                 Logger.debug("Using Supportconfig analyzers")
-                (summary, system_config, filesystem, network, logs, cloud) = self.analyze_supportconfig(extracted_dir)
+                (summary, system_config, filesystem, network, logs, cloud, updates) = self.analyze_supportconfig(extracted_dir)
 
                 # Extract individual fields from summary for compatibility
                 hostname = summary['hostname']
@@ -373,6 +389,7 @@ class SOSReportAnalyzer:
                 diagnostic_timestamp=diagnostic_timestamp,
                 enhanced_summary=enhanced_summary,
                 format_type=format_type,
+                updates=updates,
             )
             
             # Generate the report
