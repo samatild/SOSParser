@@ -357,14 +357,16 @@ class SupportconfigSystemInfo:
 
         return processes
 
-    def get_system_resources(self) -> Dict[str, str]:
+    def get_system_resources(self) -> Dict[str, Any]:
         """Extract system resource information from basic-health-check.txt."""
-        resources = {}
+        resources: Dict[str, Any] = {}
 
         # Extract df -h output
         df_output = self.parser.get_command_output('basic-health-check.txt', '/bin/df -h')
         if df_output:
             resources['df_h'] = df_output
+            # Also parse it for visual display
+            resources['disk_usage_parsed'] = self._parse_df_human(df_output)
 
         # Extract vmstat output
         vmstat_output = self.parser.get_command_output('basic-health-check.txt', '/usr/bin/vmstat')
@@ -375,5 +377,155 @@ class SupportconfigSystemInfo:
         free_output = self.parser.get_command_output('basic-health-check.txt', '/usr/bin/free -k')
         if free_output:
             resources['free'] = free_output
+            # Also parse it for visual display
+            resources['memory_parsed'] = self._parse_free_output(free_output)
 
         return resources
+
+    def _parse_free_output(self, free_text: str) -> dict:
+        """
+        Parse free command output into structured data for visualization.
+        Returns dict with memory and swap breakdown.
+        """
+        if not free_text:
+            return {}
+        
+        result = {}
+        lines = free_text.strip().split('\n')
+        
+        def format_size(kb):
+            """Convert KB to human-readable format."""
+            if kb >= 1073741824:  # TB
+                return f"{kb / 1073741824:.1f}T"
+            elif kb >= 1048576:  # GB
+                return f"{kb / 1048576:.1f}G"
+            elif kb >= 1024:  # MB
+                return f"{kb / 1024:.1f}M"
+            return f"{kb}K"
+        
+        for line in lines:
+            if line.startswith('Mem:'):
+                parts = line.split()
+                if len(parts) >= 7:
+                    try:
+                        total = int(parts[1])
+                        used = int(parts[2])
+                        free = int(parts[3])
+                        shared = int(parts[4])
+                        buff_cache = int(parts[5])
+                        available = int(parts[6])
+                        
+                        # Calculate percentages
+                        if total > 0:
+                            result['memory'] = {
+                                'total': total,
+                                'total_human': format_size(total),
+                                'used': used,
+                                'used_human': format_size(used),
+                                'used_percent': round((used / total) * 100, 1),
+                                'free': free,
+                                'free_human': format_size(free),
+                                'free_percent': round((free / total) * 100, 1),
+                                'shared': shared,
+                                'shared_human': format_size(shared),
+                                'buff_cache': buff_cache,
+                                'buff_cache_human': format_size(buff_cache),
+                                'buff_cache_percent': round((buff_cache / total) * 100, 1),
+                                'available': available,
+                                'available_human': format_size(available),
+                                'available_percent': round((available / total) * 100, 1),
+                            }
+                    except (ValueError, IndexError):
+                        pass
+            
+            elif line.startswith('Swap:'):
+                parts = line.split()
+                if len(parts) >= 4:
+                    try:
+                        total = int(parts[1])
+                        used = int(parts[2])
+                        free = int(parts[3])
+                        
+                        if total > 0:
+                            result['swap'] = {
+                                'total': total,
+                                'total_human': format_size(total),
+                                'used': used,
+                                'used_human': format_size(used),
+                                'used_percent': round((used / total) * 100, 1),
+                                'free': free,
+                                'free_human': format_size(free),
+                                'free_percent': round((free / total) * 100, 1),
+                            }
+                    except (ValueError, IndexError):
+                        pass
+        
+        return result
+
+    def _parse_df_human(self, df_text: str) -> list:
+        """
+        Parse df -h output into structured data for visualization.
+        Returns list of dicts with filesystem info, filtering out virtual filesystems.
+        """
+        if not df_text:
+            return []
+        
+        # Virtual filesystems to exclude
+        virtual_fs = {'sysfs', 'proc', 'devtmpfs', 'securityfs', 'tmpfs', 'devpts',
+                      'cgroup', 'pstore', 'bpf', 'configfs', 'selinuxfs', 'debugfs',
+                      'hugetlbfs', 'mqueue', 'fusectl', 'binfmt_misc', 'sunrpc',
+                      'tracefs', 'none', 'overlay', 'shm', 'nsfs', 'cgroup2', 'efivarfs'}
+        
+        parsed = []
+        lines = df_text.strip().split('\n')
+        
+        for line in lines[1:]:  # Skip header
+            if not line.strip():
+                continue
+            
+            parts = line.split()
+            if len(parts) < 5:
+                continue
+            
+            filesystem = parts[0]
+            
+            # Skip virtual filesystems
+            fs_type = filesystem.split('/')[-1] if '/' in filesystem else filesystem
+            if fs_type.lower() in virtual_fs or filesystem in virtual_fs:
+                continue
+            
+            try:
+                size = parts[1]
+                used = parts[2]
+                avail = parts[3]
+                
+                # Parse use percentage
+                use_pct_str = parts[4].rstrip('%')
+                if use_pct_str == '-':
+                    continue
+                use_pct = int(use_pct_str)
+                
+                # Get mount point
+                mount = ' '.join(parts[5:]) if len(parts) > 5 else ''
+                
+                # Skip very small filesystems (parse size to check)
+                size_lower = size.lower()
+                if size_lower.endswith('k') or size_lower.endswith('m'):
+                    # Skip if less than 1G
+                    continue
+                
+                parsed.append({
+                    'filesystem': filesystem,
+                    'size': size,
+                    'used': used,
+                    'available': avail,
+                    'use_percent': use_pct,
+                    'mount': mount
+                })
+            except (ValueError, IndexError):
+                continue
+        
+        # Sort by usage percentage descending
+        parsed.sort(key=lambda x: x['use_percent'], reverse=True)
+        
+        return parsed
