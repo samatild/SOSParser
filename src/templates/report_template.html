@@ -493,6 +493,13 @@
                     </table>
                 </div>
                 {% endif %}
+
+                {% if summary.cpu_info.lscpu %}
+                <div class="info-card" style="margin-top: 1rem;">
+                    <h3>CPU Details</h3>
+                    <pre>{{ summary.cpu_info.lscpu }}</pre>
+                </div>
+                {% endif %}
             </section>
 
             <!-- System Config Tab -->
