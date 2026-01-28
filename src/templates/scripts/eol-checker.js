@@ -13,6 +13,7 @@
         'almalinux': 'almalinux',
         'fedora': 'fedora',
         'oracle': 'oracle-linux',
+        'ol': 'oracle-linux',  // Oracle Linux may use 'ol' as ID
         
         // Debian family
         'debian': 'debian',
