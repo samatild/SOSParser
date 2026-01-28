@@ -329,7 +329,7 @@ class SystemConfigAnalyzer:
                 packages.append(package_name)
 
             data['rpm_count'] = len(packages)
-            data['rpm_sample'] = packages[:50]  # First 50
+            data['rpm_list'] = packages  # Full list
             data['package_manager'] = 'rpm'
 
         # Debian packages (Debian/Ubuntu based systems)
@@ -352,7 +352,7 @@ class SystemConfigAnalyzer:
                         packages.append(package_info)
 
             data['rpm_count'] = len(packages)  # Keep compatibility with template
-            data['rpm_sample'] = packages[:50]  # First 50
+            data['rpm_list'] = packages  # Full list
             data['package_manager'] = 'dpkg'
 
         # APT repos

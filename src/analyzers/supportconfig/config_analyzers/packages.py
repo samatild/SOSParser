@@ -23,7 +23,7 @@ class PackagesConfigAnalyzer:
         """
         packages: Dict[str, Any] = {
             'rpm_count': 0,
-            'rpm_sample': [],
+            'rpm_list': [],
             'repos': '',
             'package_manager_conf': '',
         }
@@ -58,6 +58,6 @@ class PackagesConfigAnalyzer:
 
         if rpm_entries:
             packages['rpm_count'] = len(rpm_entries)
-            packages['rpm_sample'] = rpm_entries[:50]
+            packages['rpm_list'] = rpm_entries  # Full list
 
         return packages

@@ -845,10 +845,11 @@
                     {% if system_config.packages %}
                         {% if system_config.packages.rpm_count %}
                         <h4>Installed Packages</h4>
-                        <p>Total RPM packages: <strong>{{ system_config.packages.rpm_count }}</strong></p>
-                        {% if system_config.packages.rpm_sample %}
-                        <p>Sample (first 50):</p>
-                        <pre>{{ system_config.packages.rpm_sample | join('\n') }}</pre>
+                        <p>Total packages: <strong>{{ system_config.packages.rpm_count }}</strong>{% if system_config.packages.package_manager %} ({{ system_config.packages.package_manager }}){% endif %}</p>
+                        {% if system_config.packages.rpm_list %}
+                        <div class="packages-list-container" style="max-height: 400px; overflow-y: auto; background: var(--bg-tertiary); border-radius: 8px; padding: 0.5rem;">
+                        <pre style="margin: 0;">{{ system_config.packages.rpm_list | join('\n') }}</pre>
+                        </div>
                         {% endif %}
                         {% endif %}
                         {% if system_config.packages.repos %}
