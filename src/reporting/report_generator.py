@@ -18,7 +18,7 @@ OS_LOGO_MAP: List[Tuple[Tuple[str, ...], str]] = [
     (('amazon', 'amzn'), 'images/amazonlinuxlogo.png'),
     (('fedora',), 'images/fedoralinuxlogo.png'),
     (('suse', 'sles'), 'images/SUSE_Linux_GmbH_Logo.svg'),
-    (('oracle',), 'images/oraclelinux.svg'),
+    (('oracle', 'ol'), 'images/oraclelinux.svg'),
     (('arch',), 'images/archlinuxlogo.svg'),
 ]
 

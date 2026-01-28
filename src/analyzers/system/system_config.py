@@ -18,6 +18,78 @@ class SystemConfigAnalyzer:
         
         data = {}
         
+        # Collection time from sos_commands/date/date
+        date_file = base_path / 'sos_commands' / 'date' / 'date'
+        if date_file.exists():
+            data['collection_time'] = date_file.read_text().strip()
+        
+        # uname -a from sos_commands/kernel/uname_-a
+        uname_file = base_path / 'sos_commands' / 'kernel' / 'uname_-a'
+        if uname_file.exists():
+            data['uname'] = uname_file.read_text().strip()
+        
+        # Uptime from sos_commands/host/uptime
+        uptime_file = base_path / 'sos_commands' / 'host' / 'uptime'
+        if uptime_file.exists():
+            data['uptime'] = uptime_file.read_text().strip()
+        
+        # OS release
+        os_release_file = base_path / 'etc' / 'os-release'
+        if os_release_file.exists():
+            data['os_release'] = os_release_file.read_text().strip()
+        
+        # Kernel tainted status
+        tainted_file = base_path / 'proc' / 'sys' / 'kernel' / 'tainted'
+        if tainted_file.exists():
+            tainted_value = tainted_file.read_text().strip()
+            if tainted_value != '0':
+                data['kernel_tainted'] = f"Tainted: {tainted_value}"
+            else:
+                data['kernel_tainted'] = "Not tainted (0)"
+        
+        # CPU vulnerabilities
+        vuln_dir = base_path / 'sys' / 'devices' / 'system' / 'cpu' / 'vulnerabilities'
+        if vuln_dir.exists():
+            vuln_lines = []
+            for vuln_file in sorted(vuln_dir.iterdir()):
+                if vuln_file.is_file():
+                    try:
+                        status = vuln_file.read_text().strip()
+                        vuln_lines.append(f"{vuln_file.name}: {status}")
+                    except Exception:
+                        pass
+            if vuln_lines:
+                data['cpu_vulnerabilities'] = '\n'.join(vuln_lines)
+        
+        # Memory info (free)
+        free_file = base_path / 'sos_commands' / 'memory' / 'free'
+        if free_file.exists():
+            data['free'] = free_file.read_text().strip()
+        
+        # vmstat if available
+        vmstat_file = base_path / 'sos_commands' / 'memory' / 'vmstat'
+        if vmstat_file.exists():
+            data['vmstat'] = vmstat_file.read_text().strip()
+        
+        # Disk usage (df -h)
+        df_h_file = base_path / 'sos_commands' / 'filesys' / 'df_-al_-x_autofs'
+        if df_h_file.exists():
+            data['df_h'] = df_h_file.read_text().strip()
+        
+        # Inodes (df -i) - check for df with inode info
+        df_i_file = base_path / 'sos_commands' / 'filesys' / 'df_-aliT_-x_autofs'
+        if df_i_file.exists():
+            data['df_i'] = df_i_file.read_text().strip()
+        
+        # Process snapshot (first 50 lines)
+        ps_file = base_path / 'sos_commands' / 'process' / 'ps_auxwwwm'
+        if not ps_file.exists():
+            ps_file = base_path / 'sos_commands' / 'process' / 'ps_auxfwww'
+        if ps_file.exists():
+            content = ps_file.read_text()
+            lines = content.split('\n')[:50]
+            data['ps_ax'] = '\n'.join(lines).strip()
+        
         # Hostname
         hostname_file = base_path / 'etc' / 'hostname'
         if hostname_file.exists():
@@ -44,6 +116,17 @@ class SystemConfigAnalyzer:
         machine_id_file = base_path / 'etc' / 'machine-id'
         if machine_id_file.exists():
             data['machine_id'] = machine_id_file.read_text().strip()
+        
+        # Virtualization detection
+        virt_file = base_path / 'sos_commands' / 'hardware' / 'hostnamectl_status'
+        if not virt_file.exists():
+            virt_file = base_path / 'sos_commands' / 'host' / 'hostnamectl_status'
+        if virt_file.exists():
+            content = virt_file.read_text()
+            for line in content.split('\n'):
+                if 'Virtualization:' in line or 'virtualization:' in line.lower():
+                    data['virtualization'] = line.strip()
+                    break
         
         return data
     
@@ -329,7 +412,7 @@ class SystemConfigAnalyzer:
                 packages.append(package_name)
 
             data['rpm_count'] = len(packages)
-            data['rpm_sample'] = packages[:50]  # First 50
+            data['rpm_list'] = packages  # Full list
             data['package_manager'] = 'rpm'
 
         # Debian packages (Debian/Ubuntu based systems)
@@ -352,7 +435,7 @@ class SystemConfigAnalyzer:
                         packages.append(package_info)
 
             data['rpm_count'] = len(packages)  # Keep compatibility with template
-            data['rpm_sample'] = packages[:50]  # First 50
+            data['rpm_list'] = packages  # Full list
             data['package_manager'] = 'dpkg'
 
         # APT repos

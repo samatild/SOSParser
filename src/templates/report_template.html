@@ -232,36 +232,137 @@
                     </div>
                 </div>
                 
-                {% if summary.cpu_info.lscpu %}
-                <div class="info-card" style="margin-top: 1rem;">
-                    <h3>CPU Details</h3>
-                    <pre>{{ summary.cpu_info.lscpu }}</pre>
-                </div>
-                {% endif %}
-                
                 {% if summary.system_resources %}
                 <div class="info-card" style="margin-top: 1rem;">
                     <h3>System Resources</h3>
 
-                    {% if summary.system_resources.df_h %}
+                    {% if summary.system_resources.disk_usage_parsed %}
+                    <div style="margin-bottom: 1rem;">
+                        <h4>Disk Usage</h4>
+                        <div class="disk-usage-visual">
+                            {% for disk in summary.system_resources.disk_usage_parsed %}
+                            <div class="disk-usage-item" style="margin-bottom: 0.75rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.85em;">
+                                    <span class="disk-mount" title="{{ disk.filesystem }}">{{ disk.mount }}</span>
+                                    <span class="disk-stats">{{ disk.used }} / {{ disk.size }} ({{ disk.use_percent }}%)</span>
+                                </div>
+                                <div class="disk-progress-bar" style="background: var(--bg-tertiary); border-radius: 4px; height: 20px; overflow: hidden;">
+                                    <div class="disk-progress-fill" style="height: 100%; border-radius: 4px; transition: width 0.3s;
+                                        width: {{ disk.use_percent }}%;
+                                        background: {% if disk.use_percent >= 90 %}#e74c3c{% elif disk.use_percent >= 75 %}#f39c12{% elif disk.use_percent >= 50 %}#3498db{% else %}#2ecc71{% endif %};">
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <details style="margin-top: 0.5rem;">
+                            <summary style="cursor: pointer; font-size: 0.85em; color: var(--text-secondary);">Show raw df output</summary>
+                            <pre style="font-size: 0.8em; margin-top: 0.5rem;">{{ summary.system_resources.df_h }}</pre>
+                        </details>
+                    </div>
+                    {% elif summary.system_resources.df_h %}
                     <div style="margin-bottom: 1rem;">
                         <h4>Disk Usage (df -h)</h4>
                         <pre style="font-size: 0.9em;">{{ summary.system_resources.df_h }}</pre>
                     </div>
                     {% endif %}
 
-                    {% if summary.system_resources.vmstat or summary.system_resources.free %}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    {% if summary.system_resources.memory_parsed and summary.system_resources.memory_parsed.memory %}
+                    {% set mem = summary.system_resources.memory_parsed.memory %}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1rem;">
+                        <!-- Memory Usage with Pie Chart -->
+                        <div>
+                            <h4>Memory Usage</h4>
+                            <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                                <!-- Pie Chart -->
+                                <div style="position: relative; width: 130px; height: 130px; flex-shrink: 0;">
+                                    <div style="width: 100%; height: 100%; border-radius: 50%; 
+                                        background: conic-gradient(
+                                            #e74c3c 0deg {{ (mem.used_percent * 3.6)|round|int }}deg,
+                                            #3498db {{ (mem.used_percent * 3.6)|round|int }}deg {{ ((mem.used_percent + mem.buff_cache_percent) * 3.6)|round|int }}deg,
+                                            #2ecc71 {{ ((mem.used_percent + mem.buff_cache_percent) * 3.6)|round|int }}deg 360deg
+                                        );">
+                                    </div>
+                                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                                        width: 70px; height: 70px; background: var(--bg-secondary); border-radius: 50%;
+                                        display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                                        <span style="font-size: 1em; font-weight: bold;">{{ mem.total_human }}</span>
+                                        <span style="font-size: 0.65em; color: var(--text-secondary);">Total</span>
+                                    </div>
+                                </div>
+                                <!-- Legend -->
+                                <div style="flex: 1; min-width: 150px; font-size: 0.9em;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;">
+                                        <span style="display: inline-block; width: 10px; height: 10px; background: #e74c3c; border-radius: 2px;"></span>
+                                        <span>Used: <strong>{{ mem.used_human }}</strong> ({{ mem.used_percent }}%)</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;">
+                                        <span style="display: inline-block; width: 10px; height: 10px; background: #3498db; border-radius: 2px;"></span>
+                                        <span>Buff/Cache: <strong>{{ mem.buff_cache_human }}</strong> ({{ mem.buff_cache_percent }}%)</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;">
+                                        <span style="display: inline-block; width: 10px; height: 10px; background: #2ecc71; border-radius: 2px;"></span>
+                                        <span>Free: <strong>{{ mem.free_human }}</strong> ({{ mem.free_percent }}%)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Available Memory Bar -->
+                            <div style="margin-top: 0.75rem;">
+                                <h5 style="margin-bottom: 0.4rem; font-size: 0.9em;">Available Memory</h5>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <div style="flex: 1; max-width: 200px;">
+                                        <div style="background: var(--bg-tertiary); border-radius: 4px; height: 16px; overflow: hidden;">
+                                            <div style="height: 100%; border-radius: 4px;
+                                                width: {{ mem.available_percent }}%;
+                                                background: {% if mem.available_percent >= 50 %}#2ecc71{% elif mem.available_percent >= 25 %}#f39c12{% else %}#e74c3c{% endif %};">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span style="font-size: 0.85em;">{{ mem.available_human }} / {{ mem.total_human }} ({{ mem.available_percent }}%)</span>
+                                </div>
+                            </div>
+                            {% if summary.system_resources.memory_parsed.swap %}
+                            {% set swap = summary.system_resources.memory_parsed.swap %}
+                            <div style="margin-top: 0.75rem;">
+                                <h5 style="margin-bottom: 0.4rem; font-size: 0.9em;">Swap</h5>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <div style="flex: 1; max-width: 200px;">
+                                        <div style="background: var(--bg-tertiary); border-radius: 4px; height: 16px; overflow: hidden;">
+                                            <div style="height: 100%; border-radius: 4px;
+                                                width: {{ swap.used_percent }}%;
+                                                background: {% if swap.used_percent >= 80 %}#e74c3c{% elif swap.used_percent >= 50 %}#f39c12{% else %}#9b59b6{% endif %};">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span style="font-size: 0.85em;">{{ swap.used_human }} / {{ swap.total_human }}</span>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <!-- vmstat -->
+                        {% if summary.system_resources.vmstat %}
+                        <div>
+                            <h4>Virtual Memory Statistics</h4>
+                            <pre style="font-size: 0.85em; margin: 0;">{{ summary.system_resources.vmstat }}</pre>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <details style="margin-bottom: 1rem;">
+                        <summary style="cursor: pointer; font-size: 0.85em; color: var(--text-secondary);">Show raw free output</summary>
+                        <pre style="font-size: 0.8em; margin-top: 0.5rem;">{{ summary.system_resources.free }}</pre>
+                    </details>
+                    {% elif summary.system_resources.vmstat or summary.system_resources.free %}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                         {% if summary.system_resources.vmstat %}
                         <div>
                             <h4>Virtual Memory Statistics (vmstat)</h4>
-                            <pre style="font-size: 0.9em; min-height: 100px;">{{ summary.system_resources.vmstat }}</pre>
+                            <pre style="font-size: 0.9em;">{{ summary.system_resources.vmstat }}</pre>
                         </div>
                         {% endif %}
                         {% if summary.system_resources.free %}
                         <div>
                             <h4>Memory Usage (free -k)</h4>
-                            <pre style="font-size: 0.9em; min-height: 100px;">{{ summary.system_resources.free }}</pre>
+                            <pre style="font-size: 0.9em;">{{ summary.system_resources.free }}</pre>
                         </div>
                         {% endif %}
                     </div>
@@ -390,6 +491,13 @@
                         </tr>
                         {% endif %}
                     </table>
+                </div>
+                {% endif %}
+
+                {% if summary.cpu_info.lscpu %}
+                <div class="info-card" style="margin-top: 1rem;">
+                    <h3>CPU Details</h3>
+                    <pre>{{ summary.cpu_info.lscpu }}</pre>
                 </div>
                 {% endif %}
             </section>
@@ -845,10 +953,11 @@
                     {% if system_config.packages %}
                         {% if system_config.packages.rpm_count %}
                         <h4>Installed Packages</h4>
-                        <p>Total RPM packages: <strong>{{ system_config.packages.rpm_count }}</strong></p>
-                        {% if system_config.packages.rpm_sample %}
-                        <p>Sample (first 50):</p>
-                        <pre>{{ system_config.packages.rpm_sample | join('\n') }}</pre>
+                        <p>Total packages: <strong>{{ system_config.packages.rpm_count }}</strong>{% if system_config.packages.package_manager %} ({{ system_config.packages.package_manager }}){% endif %}</p>
+                        {% if system_config.packages.rpm_list %}
+                        <div class="packages-list-container" style="max-height: 400px; overflow-y: auto; background: var(--bg-tertiary); border-radius: 8px; padding: 0.5rem;">
+                        <pre style="margin: 0;">{{ system_config.packages.rpm_list | join('\n') }}</pre>
+                        </div>
                         {% endif %}
                         {% endif %}
                         {% if system_config.packages.repos %}

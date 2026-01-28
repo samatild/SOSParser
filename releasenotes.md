@@ -1,30 +1,40 @@
-## [0.2.15] - 2026-01-27
+## [0.2.16] - 2026-01-28
 
 ### Added
-- **New Updates Tab**: Comprehensive package update and repository information analysis
-  - New main navigation tab displaying package manager data for all supported formats
-  - **DNF Support (RHEL 8+, Fedora)**:
-    - Available updates with summary statistics (total, security, bugfix, severity counts)
-    - Security advisories with CVE details
-    - Repository list and verbose repository information
-    - Update history
-    - DNF modules (installed and available)
-    - Package problems and duplicate detection
-  - **APT Support (Debian, Ubuntu)**:
-    - APT sources from `/etc/apt/sources.list` and `sources.list.d/`
-    - Mirror configuration
-    - Package pinning (preferences)
-    - Held packages
-    - APT policy and cache statistics
-    - APT configuration dump
-  - **YUM Support (RHEL 7 and older)**:
-    - Repository list and update history
-  - **Zypper Support (SUSE/SLES - supportconfig)**:
-    - Patch summary with security/recommended/optional counts
-    - Available patches and patch check status
-    - Package updates list with count
-    - Repository and services (modules) configuration
-    - Package locks
-    - Installed products and SUSEConnect subscription status
-    - Product lifecycle information
-    - Orphaned packages detection
+- **Visual Disk Usage Graphs**: Summary page now displays disk usage with color-coded progress bars
+  - Green: < 50% used
+  - Blue: 50-75% used
+  - Orange: 75-90% used
+  - Red: > 90% used
+  - Filters out virtual filesystems for cleaner display
+  - Raw `df` output available in collapsible details section
+
+- **Memory Usage Pie Chart**: Visual breakdown of memory allocation on Summary page
+  - Donut chart showing Used (red), Buffers/Cache (blue), and Free (green) memory
+  - Total RAM displayed in center
+  - Legend with human-readable values and percentages
+  - Available Memory progress bar with color coding (green/orange/red)
+  - Swap usage progress bar
+  - vmstat displayed alongside memory chart in 2-column layout
+  - Raw `free` output available in collapsible details section
+
+### Fixed
+- **Packages List Truncation**: System Config → Packages now shows full package list instead of first 50 only
+  - Scrollable container for long package lists (max-height 400px)
+  - Shows package count with package manager type
+
+- **System Config → General Tab Empty for sosreport**: Tab now properly populated with:
+  - Collection time, uname, uptime
+  - OS release information
+  - Kernel tainted status
+  - CPU vulnerabilities
+  - Memory info (free), disk usage (df -h/-i)
+  - Process snapshot
+  - Virtualization detection
+
+- **Oracle Linux Identification**: Added 'ol' ID variant recognition
+  - EOL checker now correctly identifies Oracle Linux systems
+  - Logo properly displayed instead of "Unknown Distribution"
+
+### Changed
+- **CPU Details Section**: Moved to bottom of Summary page for better information hierarchy
