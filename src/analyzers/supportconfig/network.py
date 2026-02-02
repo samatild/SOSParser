@@ -10,6 +10,7 @@ from .network_analyzers.dns_config import DNSConfigAnalyzer
 from .network_analyzers.hosts import HostsAnalyzer
 from .network_analyzers.firewall import FirewallAnalyzer
 from .network_analyzers.connectivity import ConnectivityAnalyzer
+from utils.logger import Logger
 
 
 class SupportconfigNetwork:
@@ -32,19 +33,32 @@ class SupportconfigNetwork:
         Returns:
             Dictionary with network information
         """
+        Logger.memory("  Network: start")
+        
+        interfaces = InterfacesAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Network: interfaces done")
+        
         routes = RoutesAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Network: routes done")
+        
+        dns = DNSConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Network: dns done")
+        
+        hosts = HostsAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Network: hosts done")
+        
+        firewall = FirewallAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Network: firewall done")
+        
+        connectivity = ConnectivityAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Network: connectivity done")
+        
         return {
-            'interfaces': InterfacesAnalyzer(
-                self.root_path, self.parser
-            ).analyze(),
+            'interfaces': interfaces,
             'routes': routes,      # backward compatibility
             'routing': routes,     # matches template usage
-            'dns': DNSConfigAnalyzer(self.root_path, self.parser).analyze(),
-            'hosts': HostsAnalyzer(self.root_path, self.parser).analyze(),
-            'firewall': FirewallAnalyzer(
-                self.root_path, self.parser
-            ).analyze(),
-            'connectivity': ConnectivityAnalyzer(
-                self.root_path, self.parser
-            ).analyze(),
+            'dns': dns,
+            'hosts': hosts,
+            'firewall': firewall,
+            'connectivity': connectivity,
         }

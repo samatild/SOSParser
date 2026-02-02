@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from .cloud_analyzers.provider_detector import ProviderDetector
 from .cloud_analyzers.cloud_data_reader import CloudDataReader
+from utils.logger import Logger
 
 
 class SupportconfigCloud:
@@ -26,17 +27,22 @@ class SupportconfigCloud:
         Returns:
             Dictionary with cloud information or None if no cloud detected
         """
+        Logger.memory("  Cloud: start")
+        
         public_cloud_dir = self.root_path / 'public_cloud'
         if not public_cloud_dir.exists():
+            Logger.memory("  Cloud: no public_cloud dir, skipping")
             return None
 
         # Detect provider
         provider_detector = ProviderDetector(self.root_path)
         provider = provider_detector.analyze()
+        Logger.memory("  Cloud: provider detected")
 
         # Read cloud data
         data_reader = CloudDataReader(self.root_path)
         cloud_data = data_reader.analyze()
+        Logger.memory("  Cloud: data read")
 
         cloud = {}
         cloud['provider'] = provider or 'unknown'

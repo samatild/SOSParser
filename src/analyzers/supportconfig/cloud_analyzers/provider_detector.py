@@ -21,13 +21,14 @@ class ProviderDetector:
         if not public_cloud_dir.exists():
             return None
 
-        def read_optional(path: Path, limit: int | None = None):
+        def read_optional(path: Path, limit: int = 5000):
+            """Read file with proper size limit - doesn't load entire file first."""
             try:
-                if limit:
-                    content = path.read_text()
-                    return content[:limit] if len(content) > limit else content
-                else:
-                    return path.read_text()
+                if not path.exists():
+                    return None
+                # Read only up to limit bytes - memory efficient
+                with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                    return f.read(limit)
             except Exception:
                 return None
 

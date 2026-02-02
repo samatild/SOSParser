@@ -1,12 +1,18 @@
-## [0.2.18] - 2026-02-02
+## [0.2.19] - 2026-02-02
 
 ### Fixed
-- **Memory Efficiency for Large Log Files**: Prevents OOM crashes in Kubernetes pods
-  - Log file tailing now uses reverse-reading algorithm for files > 1MB
-  - Only reads the last N lines from disk instead of loading entire file into memory
-  - Gzip log files now stream through with `deque(maxlen=N)` to cap memory usage
-  - Supportconfig parser uses same memory-efficient tail algorithm
-  - Chunk reassembly uses streaming copy (`shutil.copyfileobj`) with 64KB buffer
-  - Fixes OOM issues when processing sosreports with large journal/message logs
+- **Critical Memory Optimization for Supportconfig**: Reduces peak memory from ~3.2GB to ~150MB
+  - `boot.txt` streaming: New `find_sections_streaming()` method reads large files line-by-line
+  - `BootConfigAnalyzer` now streams through boot.txt finding only needed sections (was loading entire file)
+  - `ProviderDetector` fixed to read only first N bytes instead of loading entire file then truncating
+  - `get_kernel_info()` uses streaming to find "running kernel" section without loading boot.txt
+  - Peak memory during supportconfig analysis reduced from 946MB to ~150MB
+
+### Added
+- **Memory Profiling Tools** (debug mode only):
+  - `Logger.memory(phase)` - logs RSS and Peak memory at checkpoints
+  - Tracks VmHWM (High Water Mark) to catch transient memory spikes
+  - Granular tracking in all supportconfig sub-analyzers
+  - Enable with `WEBAPP_DEBUG=1` environment variable
 
 ---

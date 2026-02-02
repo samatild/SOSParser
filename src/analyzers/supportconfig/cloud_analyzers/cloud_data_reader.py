@@ -20,13 +20,14 @@ class CloudDataReader:
         public_cloud_dir = self.root_path / 'public_cloud'
         data = {}
 
-        def read_optional(path: Path, limit: int | None = None):
+        def read_optional(path: Path, limit: int = 5000):
+            """Read file with limit - reads only up to limit bytes, not entire file."""
             try:
-                if limit:
-                    content = path.read_text()
-                    return content[:limit] if len(content) > limit else content
-                else:
-                    return path.read_text()
+                if not path.exists():
+                    return None
+                # Read only what we need - don't load entire file!
+                with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                    return f.read(limit)
             except Exception:
                 return None
 

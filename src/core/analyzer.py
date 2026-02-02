@@ -124,6 +124,10 @@ class SOSReportAnalyzer:
         """
         Logger.info("Analyzing supportconfig format")
         
+        # Enable memory tracking for supportconfig analysis (debug mode only)
+        Logger.enable_memory_tracking(True)
+        Logger.memory("SCC analysis start")
+        
         # Initialize supportconfig analyzers
         config_analyzer = SupportconfigSystemConfig(extracted_dir)
         net_analyzer = SupportconfigNetwork(extracted_dir)
@@ -134,10 +138,12 @@ class SOSReportAnalyzer:
         # Initialize updates analyzer with parser
         parser = SupportconfigParser(extracted_dir)
         updates_analyzer = SupportconfigUpdates(parser)
+        Logger.memory("Analyzers initialized")
         
         # Get complete summary data using dedicated summary analyzer
         summary_analyzer = SupportconfigSummaryAnalyzer(extracted_dir)
         summary = summary_analyzer.get_full_summary()
+        Logger.memory("Summary analysis complete")
 
         # Extract individual fields for backward compatibility
         hostname = summary['hostname']
@@ -153,6 +159,8 @@ class SOSReportAnalyzer:
         # Get system configuration
         Logger.debug("Analyzing system configuration (supportconfig)")
         config_data = config_analyzer.analyze()
+        Logger.memory("System config analysis complete")
+        
         system_config = {
             'general': config_data.get('general', {}),
             'boot': config_data.get('boot', {}),
@@ -172,22 +180,28 @@ class SOSReportAnalyzer:
         
         # Analyze filesystem
         filesystem = fs_analyzer.analyze()
+        Logger.memory("Filesystem analysis complete")
         
         # Analyze network
         network = net_analyzer.analyze()
+        Logger.memory("Network analysis complete")
 
         # Analyze logs
         logs = logs_analyzer.analyze()
+        Logger.memory("Logs analysis complete")
 
         # Analyze cloud information
         cloud = cloud_analyzer.analyze()
+        Logger.memory("Cloud analysis complete")
         
         # Analyze updates (zypper)
         Logger.debug("Analyzing updates (supportconfig)")
         updates = updates_analyzer.analyze()
+        Logger.memory("Updates analysis complete")
         
         # Construct enhanced summary for supportconfig
         # Summary is already populated by the summary analyzer
+        Logger.memory("SCC analysis finished - returning results")
 
         return (summary, system_config, filesystem, network, logs, cloud, updates)
     
@@ -205,6 +219,11 @@ class SOSReportAnalyzer:
             format_type = detect_format(extracted_dir)
             format_info = get_format_info(format_type)
             Logger.info(f"Detected format: {format_info['name']} ({format_type})")
+            
+            # Enable memory tracking for supportconfig after extraction
+            if format_type == 'supportconfig':
+                Logger.enable_memory_tracking(True)
+                Logger.memory("After tarball extraction")
             
             if format_type == 'unknown':
                 raise ValueError(f"Unknown or unsupported diagnostic file format at {extracted_dir}")
@@ -366,6 +385,7 @@ class SOSReportAnalyzer:
                     'system_resources': summary.get('system_resources', {}),
                 }
 
+            Logger.memory("Before prepare_report_data")
             report_data = prepare_report_data(
                 os_info=os_info,
                 hostname=hostname,
@@ -391,17 +411,21 @@ class SOSReportAnalyzer:
                 format_type=format_type,
                 updates=updates,
             )
+            Logger.memory("After prepare_report_data")
             
             # Generate the report
             Logger.debug("Rendering HTML report from template.")
             template = self.env.get_template('report_template.html')
+            Logger.memory("Before template.render")
             html_content = template.render(**report_data)
+            Logger.memory("After template.render (HTML in memory)")
             
             # Write the report to the output file
             output_path = self.output_dir / 'report.html'
             Logger.debug(f"Writing report to: {output_path}")
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(html_content)
+            Logger.memory("After writing HTML to disk")
             
             Logger.debug("Report generation complete.")
             return output_path

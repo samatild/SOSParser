@@ -11,6 +11,7 @@ from .filesystem_analyzers.filesystem_types import FilesystemTypesAnalyzer
 from .filesystem_analyzers.nfs import NfsAnalyzer
 from .filesystem_analyzers.samba import SambaAnalyzer
 from analyzers.filesystem.lvm_visualizer import generate_lvm_svg
+from utils.logger import Logger
 
 
 class SupportconfigFilesystem:
@@ -33,16 +34,35 @@ class SupportconfigFilesystem:
         Returns:
             Dictionary with filesystem information
         """
+        Logger.memory("  Filesystem: start")
+        
+        mounts = MountsAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Filesystem: mounts done")
+        
+        disk_usage = DiskUsageAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Filesystem: disk_usage done")
+        
         lvm_data = LvmAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Filesystem: lvm done")
+        
+        lvm_diagram = generate_lvm_svg(lvm_data)
+        Logger.memory("  Filesystem: lvm_diagram done")
+        
+        filesystems = FilesystemTypesAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Filesystem: filesystems done")
+        
+        nfs = NfsAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Filesystem: nfs done")
+        
+        samba = SambaAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Filesystem: samba done")
+        
         return {
-            'mounts': MountsAnalyzer(self.root_path, self.parser).analyze(),
-            'disk_usage': (
-                DiskUsageAnalyzer(self.root_path, self.parser).analyze()
-            ),
+            'mounts': mounts,
+            'disk_usage': disk_usage,
             'lvm': lvm_data,
-            'lvm_diagram': generate_lvm_svg(lvm_data),
-            'filesystems': FilesystemTypesAnalyzer(
-                self.root_path, self.parser).analyze(),
-            'nfs': NfsAnalyzer(self.root_path, self.parser).analyze(),
-            'samba': SambaAnalyzer(self.root_path, self.parser).analyze(),
+            'lvm_diagram': lvm_diagram,
+            'filesystems': filesystems,
+            'nfs': nfs,
+            'samba': samba,
         }

@@ -27,7 +27,8 @@ if [[ "$1" == "--run" ]]; then
     docker rm sosparser 2>/dev/null || true
 
     echo "Starting new container..."
-    docker run -d -p 8000:8000 --name sosparser sosparser:latest
+    docker run -d -p 8000:8000 --name sosparser -e WEBAPP_DEBUG=1 
+    sosparser:latest
     
     echo ""
     echo "✅ Container is running!"
