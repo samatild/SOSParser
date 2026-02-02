@@ -64,4 +64,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Run the application with gunicorn
 # Timeout set high (30min) for large file extraction/analysis
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "1800", "--graceful-timeout", "1800", "--keep-alive", "75", "--workers", "2", "webapp.wsgi:application"]
+# --access-logfile and --error-logfile set to - for stdout/stderr (Kubernetes log streaming)
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "1800", "--graceful-timeout", "1800", "--keep-alive", "75", "--workers", "2", "--access-logfile", "-", "--error-logfile", "-", "--capture-output", "webapp.wsgi:application"]
