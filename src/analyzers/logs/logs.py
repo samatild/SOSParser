@@ -148,14 +148,25 @@ class LogAnalyzer:
             return None
     
     def _tail_gzip_file(self, file_path: Path, lines: int = None) -> str:
-        """Read last N lines from a gzipped file"""
+        """Read last N lines from a gzipped file using memory-efficient streaming.
+        
+        Uses a deque with maxlen to only keep the last N lines in memory,
+        avoiding loading the entire decompressed file at once.
+        """
         if lines is None:
             lines = DEFAULT_LOG_LINES
         try:
+            from collections import deque
+            
+            # Use deque with maxlen to automatically discard old lines
+            # This streams through the file keeping only the last N lines
+            result_lines = deque(maxlen=lines)
+            
             with gzip.open(file_path, 'rt', encoding='utf-8', errors='ignore') as f:
-                all_lines = f.readlines()
-                tail_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
-                return ''.join(tail_lines)
+                for line in f:
+                    result_lines.append(line)
+            
+            return ''.join(result_lines)
         except Exception as e:
             Logger.warning(f"Failed to read gzipped file {file_path}: {e}")
             return f"Error reading gzipped file: {e}"
@@ -245,15 +256,83 @@ class LogAnalyzer:
         return data
     
     def _tail_file(self, file_path: Path, lines: int = None) -> str:
-        """Read last N lines from a file"""
+        """Read last N lines from a file using memory-efficient tail algorithm.
+        
+        Uses reverse reading from end of file to avoid loading entire file into memory.
+        This is critical for large log files (multi-GB) that would cause OOM.
+        """
         if lines is None:
             lines = DEFAULT_LOG_LINES
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                all_lines = f.readlines()
-                tail_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
-                content = ''.join(tail_lines)
-                return content
+            from collections import deque
+            
+            file_size = file_path.stat().st_size
+            
+            # For small files (< 1MB), just read the whole thing
+            if file_size < 1024 * 1024:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    all_lines = f.readlines()
+                    tail_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+                    return ''.join(tail_lines)
+            
+            # For larger files, use memory-efficient reverse reading
+            # Read in chunks from the end of file
+            chunk_size = 8192  # 8KB chunks
+            result_lines = deque(maxlen=lines)
+            
+            with open(file_path, 'rb') as f:
+                # Start from end of file
+                f.seek(0, 2)  # Seek to end
+                remaining_size = f.tell()
+                buffer = b''
+                
+                while remaining_size > 0 and len(result_lines) < lines:
+                    # Calculate how much to read
+                    read_size = min(chunk_size, remaining_size)
+                    remaining_size -= read_size
+                    
+                    # Seek and read
+                    f.seek(remaining_size)
+                    chunk = f.read(read_size)
+                    buffer = chunk + buffer
+                    
+                    # Extract complete lines from buffer
+                    # Keep incomplete line at start in buffer for next iteration
+                    while b'\n' in buffer and len(result_lines) < lines:
+                        # Find the last newline
+                        last_newline = buffer.rfind(b'\n')
+                        if last_newline == len(buffer) - 1:
+                            # Newline at end, find the one before it
+                            second_last = buffer.rfind(b'\n', 0, last_newline)
+                            if second_last != -1:
+                                line = buffer[second_last + 1:last_newline + 1]
+                                buffer = buffer[:second_last + 1]
+                                try:
+                                    result_lines.appendleft(line.decode('utf-8', errors='ignore'))
+                                except Exception:
+                                    pass
+                            else:
+                                break
+                        else:
+                            line = buffer[last_newline + 1:]
+                            buffer = buffer[:last_newline + 1]
+                            if line:
+                                try:
+                                    result_lines.appendleft(line.decode('utf-8', errors='ignore'))
+                                except Exception:
+                                    pass
+                
+                # Handle any remaining buffer content
+                if buffer and len(result_lines) < lines:
+                    # Process remaining lines in buffer
+                    remaining_lines = buffer.decode('utf-8', errors='ignore').split('\n')
+                    for line in reversed(remaining_lines):
+                        if len(result_lines) >= lines:
+                            break
+                        if line:
+                            result_lines.appendleft(line + '\n')
+            
+            return ''.join(result_lines)
         except Exception as e:
             Logger.warning(f"Failed to read {file_path}: {e}")
             return f"Error reading file: {e}"

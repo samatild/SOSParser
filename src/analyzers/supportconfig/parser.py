@@ -45,6 +45,9 @@ class SupportconfigParser:
         """
         Read the last N lines from a supportconfig .txt file.
         
+        Uses memory-efficient tail algorithm to avoid loading entire file
+        into memory for large log files.
+        
         Args:
             filename: Name of the .txt file (e.g., 'messages.txt')
             lines: Number of lines to read from the end (default 1000)
@@ -52,12 +55,72 @@ class SupportconfigParser:
         Returns:
             Last N lines of file contents or None if file doesn't exist
         """
+        from collections import deque
+        
         file_path = self.root_path / filename
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                all_lines = f.readlines()
-                tail_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
-                return ''.join(tail_lines)
+            file_size = file_path.stat().st_size
+            
+            # For small files (< 1MB), just read the whole thing
+            if file_size < 1024 * 1024:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    all_lines = f.readlines()
+                    tail_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+                    return ''.join(tail_lines)
+            
+            # For larger files, use memory-efficient reverse reading
+            chunk_size = 8192  # 8KB chunks
+            result_lines = deque(maxlen=lines)
+            
+            with open(file_path, 'rb') as f:
+                # Start from end of file
+                f.seek(0, 2)  # Seek to end
+                remaining_size = f.tell()
+                buffer = b''
+                
+                while remaining_size > 0 and len(result_lines) < lines:
+                    # Calculate how much to read
+                    read_size = min(chunk_size, remaining_size)
+                    remaining_size -= read_size
+                    
+                    # Seek and read
+                    f.seek(remaining_size)
+                    chunk = f.read(read_size)
+                    buffer = chunk + buffer
+                    
+                    # Extract complete lines from buffer
+                    while b'\n' in buffer and len(result_lines) < lines:
+                        last_newline = buffer.rfind(b'\n')
+                        if last_newline == len(buffer) - 1:
+                            second_last = buffer.rfind(b'\n', 0, last_newline)
+                            if second_last != -1:
+                                line = buffer[second_last + 1:last_newline + 1]
+                                buffer = buffer[:second_last + 1]
+                                try:
+                                    result_lines.appendleft(line.decode('utf-8', errors='ignore'))
+                                except Exception:
+                                    pass
+                            else:
+                                break
+                        else:
+                            line = buffer[last_newline + 1:]
+                            buffer = buffer[:last_newline + 1]
+                            if line:
+                                try:
+                                    result_lines.appendleft(line.decode('utf-8', errors='ignore'))
+                                except Exception:
+                                    pass
+                
+                # Handle any remaining buffer content
+                if buffer and len(result_lines) < lines:
+                    remaining_lines = buffer.decode('utf-8', errors='ignore').split('\n')
+                    for line in reversed(remaining_lines):
+                        if len(result_lines) >= lines:
+                            break
+                        if line:
+                            result_lines.appendleft(line + '\n')
+            
+            return ''.join(result_lines)
         except Exception:
             return None
     
