@@ -2,7 +2,10 @@
 """Log file analysis from sosreport"""
 
 import os
+import gzip
+import re
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 from utils.logger import Logger
 
 
@@ -13,6 +16,8 @@ DEFAULT_LOG_LINES = int(os.environ.get('LOG_LINES_DEFAULT', '1000'))
 PRIMARY_LOG_LINES = int(os.environ.get('LOG_LINES_PRIMARY', str(DEFAULT_LOG_LINES)))
 # Secondary logs can have fewer lines (e.g., cron, mail)
 SECONDARY_LOG_LINES = int(os.environ.get('LOG_LINES_SECONDARY', str(DEFAULT_LOG_LINES // 2)))
+# Lines for historical/rotated logs (keep smaller to avoid heavy reports)
+HISTORICAL_LOG_LINES = int(os.environ.get('LOG_LINES_HISTORICAL', '500'))
 
 
 class LogAnalyzer:
@@ -23,23 +28,137 @@ class LogAnalyzer:
         Logger.debug("Analyzing system logs")
         
         data = {}
+        log_dir = base_path / 'var' / 'log'
         
-        # messages
-        messages = base_path / 'var' / 'log' / 'messages'
-        if messages.exists():
-            data['messages'] = self._tail_file(messages, PRIMARY_LOG_LINES)
+        # messages - with fallback to rotated/gzipped files
+        messages = log_dir / 'messages'
+        messages_content, messages_source = self._read_log_with_fallback(messages, 'messages', log_dir)
+        if messages_content:
+            data['messages'] = messages_content
+            if messages_source != 'messages':
+                data['messages_source'] = messages_source
         
-        # syslog
-        syslog = base_path / 'var' / 'log' / 'syslog'
-        if syslog.exists():
-            data['syslog'] = self._tail_file(syslog, PRIMARY_LOG_LINES)
+        # Get historical messages files
+        historical_messages = self._get_historical_logs(log_dir, 'messages')
+        if historical_messages:
+            data['messages_historical'] = historical_messages
+        
+        # syslog - with fallback to rotated/gzipped files
+        syslog = log_dir / 'syslog'
+        syslog_content, syslog_source = self._read_log_with_fallback(syslog, 'syslog', log_dir)
+        if syslog_content:
+            data['syslog'] = syslog_content
+            if syslog_source != 'syslog':
+                data['syslog_source'] = syslog_source
+        
+        # Get historical syslog files
+        historical_syslog = self._get_historical_logs(log_dir, 'syslog')
+        if historical_syslog:
+            data['syslog_historical'] = historical_syslog
         
         # Boot log
-        boot_log = base_path / 'var' / 'log' / 'boot.log'
+        boot_log = log_dir / 'boot.log'
         if boot_log.exists():
             data['boot_log'] = self._tail_file(boot_log, SECONDARY_LOG_LINES)
         
         return data
+    
+    def _read_log_with_fallback(self, primary_file: Path, base_name: str, log_dir: Path) -> Tuple[Optional[str], str]:
+        """
+        Read a log file with fallback to rotated/gzipped versions.
+        Returns tuple of (content, source_filename).
+        """
+        # Try primary file first
+        if primary_file.exists():
+            content = self._tail_file(primary_file, PRIMARY_LOG_LINES)
+            if content and content.strip():
+                return content, base_name
+        
+        # Find rotated files and sort by date (newest first)
+        rotated_files = self._find_rotated_files(log_dir, base_name)
+        
+        for rotated_file in rotated_files:
+            content = self._read_file_auto(rotated_file, PRIMARY_LOG_LINES)
+            if content and content.strip():
+                return content, rotated_file.name
+        
+        return None, ''
+    
+    def _find_rotated_files(self, log_dir: Path, base_name: str) -> List[Path]:
+        """
+        Find rotated log files matching the base name, sorted by date (newest first).
+        Matches: messages.1, messages-20250713.gz, messages.1.gz, etc.
+        """
+        if not log_dir.exists():
+            return []
+        
+        rotated = []
+        pattern = re.compile(rf'^{re.escape(base_name)}[-.][\d-]+(?:\.gz)?$')
+        
+        for f in log_dir.iterdir():
+            if f.is_file() and pattern.match(f.name):
+                rotated.append(f)
+        
+        # Sort by modification time (newest first) or by name (which often includes date)
+        rotated.sort(key=lambda x: x.name, reverse=True)
+        
+        return rotated
+    
+    def _get_historical_logs(self, log_dir: Path, base_name: str) -> List[Dict[str, str]]:
+        """
+        Get list of historical log files with metadata.
+        Returns list of dicts with filename and content (limited lines).
+        """
+        rotated_files = self._find_rotated_files(log_dir, base_name)
+        
+        historical = []
+        for f in rotated_files[:5]:  # Limit to 5 most recent historical files
+            content = self._read_file_auto(f, HISTORICAL_LOG_LINES)
+            if content and content.strip():
+                # Extract date from filename if possible
+                date_match = re.search(r'(\d{8})', f.name)
+                date_str = date_match.group(1) if date_match else ''
+                if date_str:
+                    # Format as YYYY-MM-DD
+                    date_str = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                
+                historical.append({
+                    'filename': f.name,
+                    'date': date_str,
+                    'content': content,
+                    'is_gzipped': f.suffix == '.gz'
+                })
+        
+        return historical
+    
+    def _read_file_auto(self, file_path: Path, lines: int = None) -> Optional[str]:
+        """
+        Read a file, automatically handling gzip compression.
+        """
+        if lines is None:
+            lines = DEFAULT_LOG_LINES
+        
+        try:
+            if file_path.suffix == '.gz':
+                return self._tail_gzip_file(file_path, lines)
+            else:
+                return self._tail_file(file_path, lines)
+        except Exception as e:
+            Logger.warning(f"Failed to read {file_path}: {e}")
+            return None
+    
+    def _tail_gzip_file(self, file_path: Path, lines: int = None) -> str:
+        """Read last N lines from a gzipped file"""
+        if lines is None:
+            lines = DEFAULT_LOG_LINES
+        try:
+            with gzip.open(file_path, 'rt', encoding='utf-8', errors='ignore') as f:
+                all_lines = f.readlines()
+                tail_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+                return ''.join(tail_lines)
+        except Exception as e:
+            Logger.warning(f"Failed to read gzipped file {file_path}: {e}")
+            return f"Error reading gzipped file: {e}"
     
     def analyze_kernel_logs(self, base_path: Path) -> dict:
         """Analyze kernel logs"""

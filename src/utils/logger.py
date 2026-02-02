@@ -25,8 +25,8 @@ class Logger:
         timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         log_msg = f"[{timestamp}] [{level}] {message}"
         
-        # Always print to console
-        print(log_msg, file=sys.stderr if level == "ERROR" else sys.stdout)
+        # Always print to console with flush for Kubernetes log streaming
+        print(log_msg, file=sys.stderr if level == "ERROR" else sys.stdout, flush=True)
         
         # Write to debug file if enabled
         if cls._debug_enabled and cls._debug_file:

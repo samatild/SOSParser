@@ -2573,17 +2573,66 @@
                     <h3>System Logs</h3>
                     {% if logs.system %}
                         {% if logs.system.messages %}
-                        <h4>/var/log/messages</h4>
+                        <h4>/var/log/messages{% if logs.system.messages_source %} <span style="font-size: 0.8em; color: var(--text-secondary);">(from {{ logs.system.messages_source }})</span>{% endif %}</h4>
                         <div id="log-messages" class="log-container"></div>
                         <script>
                             new LogViewer('log-messages', {{ logs.system.messages | tojson }});
                         </script>
                         {% endif %}
+                        {% if logs.system.messages_historical %}
+                        <details style="margin-top: 1rem; margin-bottom: 1rem;">
+                            <summary style="cursor: pointer; font-weight: 500; color: var(--text-secondary);">
+                                Historical messages logs ({{ logs.system.messages_historical | length }} files)
+                            </summary>
+                            <div style="margin-top: 0.5rem;">
+                            {% for hist in logs.system.messages_historical %}
+                                <details style="margin-bottom: 0.5rem; background: var(--bg-tertiary); border-radius: 4px; padding: 0.5rem;">
+                                    <summary style="cursor: pointer;">
+                                        {{ hist.filename }}{% if hist.date %} <span style="font-size: 0.85em; color: var(--text-secondary);">({{ hist.date }})</span>{% endif %}
+                                        {% if hist.is_gzipped %}<span style="font-size: 0.75em; background: var(--accent-primary); color: white; padding: 0.1rem 0.3rem; border-radius: 3px; margin-left: 0.5rem;">gzip</span>{% endif %}
+                                    </summary>
+                                    <div id="log-messages-hist-{{ loop.index }}" class="log-container" style="margin-top: 0.5rem;"></div>
+                                    <script>
+                                        new LogViewer('log-messages-hist-{{ loop.index }}', {{ hist.content | tojson }});
+                                    </script>
+                                </details>
+                            {% endfor %}
+                            </div>
+                        </details>
+                        {% endif %}
                         {% if logs.system.syslog %}
-                        <h4>/var/log/syslog</h4>
+                        <h4>/var/log/syslog{% if logs.system.syslog_source %} <span style="font-size: 0.8em; color: var(--text-secondary);">(from {{ logs.system.syslog_source }})</span>{% endif %}</h4>
                         <div id="log-syslog" class="log-container"></div>
                         <script>
                             new LogViewer('log-syslog', {{ logs.system.syslog | tojson }});
+                        </script>
+                        {% endif %}
+                        {% if logs.system.syslog_historical %}
+                        <details style="margin-top: 1rem; margin-bottom: 1rem;">
+                            <summary style="cursor: pointer; font-weight: 500; color: var(--text-secondary);">
+                                Historical syslog files ({{ logs.system.syslog_historical | length }} files)
+                            </summary>
+                            <div style="margin-top: 0.5rem;">
+                            {% for hist in logs.system.syslog_historical %}
+                                <details style="margin-bottom: 0.5rem; background: var(--bg-tertiary); border-radius: 4px; padding: 0.5rem;">
+                                    <summary style="cursor: pointer;">
+                                        {{ hist.filename }}{% if hist.date %} <span style="font-size: 0.85em; color: var(--text-secondary);">({{ hist.date }})</span>{% endif %}
+                                        {% if hist.is_gzipped %}<span style="font-size: 0.75em; background: var(--accent-primary); color: white; padding: 0.1rem 0.3rem; border-radius: 3px; margin-left: 0.5rem;">gzip</span>{% endif %}
+                                    </summary>
+                                    <div id="log-syslog-hist-{{ loop.index }}" class="log-container" style="margin-top: 0.5rem;"></div>
+                                    <script>
+                                        new LogViewer('log-syslog-hist-{{ loop.index }}', {{ hist.content | tojson }});
+                                    </script>
+                                </details>
+                            {% endfor %}
+                            </div>
+                        </details>
+                        {% endif %}
+                        {% if logs.system.boot_log %}
+                        <h4>/var/log/boot.log</h4>
+                        <div id="log-boot" class="log-container"></div>
+                        <script>
+                            new LogViewer('log-boot', {{ logs.system.boot_log | tojson }});
                         </script>
                         {% endif %}
                     {% else %}

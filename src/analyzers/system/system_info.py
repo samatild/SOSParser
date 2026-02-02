@@ -94,16 +94,67 @@ def get_kernel_info(base_path: Path) -> dict:
 
 
 def get_uptime(base_path: Path) -> str:
-    """Extract system uptime"""
+    """Extract system uptime and convert to human-readable format"""
     try:
-        uptime_file = base_path / 'sos_commands' / 'general' / 'uptime'
-        if not uptime_file.exists():
-            uptime_file = base_path / 'proc' / 'uptime'
+        # Try different possible locations for uptime
+        uptime_paths = [
+            base_path / 'sos_commands' / 'host' / 'uptime',
+            base_path / 'sos_commands' / 'general' / 'uptime',
+            base_path / 'uptime',
+        ]
         
-        if uptime_file.exists():
-            return uptime_file.read_text().strip()
+        raw_uptime = None
+        for uptime_file in uptime_paths:
+            if uptime_file.exists():
+                raw_uptime = uptime_file.read_text().strip()
+                break
         
-        return "Unknown"
+        if not raw_uptime:
+            return "Unknown"
+        
+        # Parse the uptime output: " 12:23:13 up  4:47,  4 users,  load average: 7.35, 5.40, 4.57"
+        # Or: " 10:15:01 up 45 days, 3:22, 2 users, load average: 0.00, 0.01, 0.05"
+        # Or: " 10:15:01 up 1 day, 3:22, 2 users, load average: 0.00, 0.01, 0.05"
+        # Or: " 10:15:01 up 2 min, 1 user, load average: 0.00, 0.01, 0.05"
+        
+        import re
+        
+        # Extract the part after "up" and before the user count
+        match = re.search(r'up\s+(.+?),\s+\d+\s+user', raw_uptime)
+        if match:
+            uptime_str = match.group(1).strip()
+            
+            # Parse different formats
+            parts = []
+            
+            # Check for days
+            days_match = re.search(r'(\d+)\s+days?', uptime_str)
+            if days_match:
+                days = int(days_match.group(1))
+                parts.append(f"{days} day{'s' if days != 1 else ''}")
+            
+            # Check for hours:minutes format (e.g., "4:47" or "3:22")
+            time_match = re.search(r'(\d+):(\d+)', uptime_str)
+            if time_match:
+                hours = int(time_match.group(1))
+                minutes = int(time_match.group(2))
+                if hours > 0:
+                    parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
+                if minutes > 0:
+                    parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+            
+            # Check for just minutes (e.g., "2 min")
+            min_match = re.search(r'(\d+)\s+min', uptime_str)
+            if min_match and not time_match:
+                minutes = int(min_match.group(1))
+                parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+            
+            if parts:
+                return ', '.join(parts)
+        
+        # Fallback to raw output if parsing fails
+        return raw_uptime
+        
     except Exception as e:
         Logger.warning(f"Failed to get uptime: {e}")
         return "Unknown"

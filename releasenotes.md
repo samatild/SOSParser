@@ -1,40 +1,25 @@
-## [0.2.16] - 2026-01-28
+## [0.2.17] - 2026-02-02
 
 ### Added
-- **Visual Disk Usage Graphs**: Summary page now displays disk usage with color-coded progress bars
-  - Green: < 50% used
-  - Blue: 50-75% used
-  - Orange: 75-90% used
-  - Red: > 90% used
-  - Filters out virtual filesystems for cleaner display
-  - Raw `df` output available in collapsible details section
+- **Historical Log Files Support**: System logs now include rotated/archived log files
+  - Automatically reads gzipped log files (`.gz`) when main log file is missing
+  - Falls back to latest rotated file if primary log doesn't exist
+  - Shows up to 5 historical log files in collapsible sections
+  - Displays date and "gzip" badge for compressed files
+  - Configurable line limit for historical logs (`LOG_LINES_HISTORICAL`, default: 500)
 
-- **Memory Usage Pie Chart**: Visual breakdown of memory allocation on Summary page
-  - Donut chart showing Used (red), Buffers/Cache (blue), and Free (green) memory
-  - Total RAM displayed in center
-  - Legend with human-readable values and percentages
-  - Available Memory progress bar with color coding (green/orange/red)
-  - Swap usage progress bar
-  - vmstat displayed alongside memory chart in 2-column layout
-  - Raw `free` output available in collapsible details section
+- **Boot Log Display**: Added `/var/log/boot.log` to System Logs tab
 
 ### Fixed
-- **Packages List Truncation**: System Config → Packages now shows full package list instead of first 50 only
-  - Scrollable container for long package lists (max-height 400px)
-  - Shows package count with package manager type
+- **Uptime Always Showing "Unknown"**: Fixed uptime detection for sosreport
+  - Now checks correct path `sos_commands/host/uptime` first
+  - Converts raw uptime to human-readable format (e.g., "4 hours, 47 minutes" or "45 days, 3 hours, 22 minutes")
+  - Supports various uptime formats including days, hours:minutes, and minutes only
 
-- **System Config → General Tab Empty for sosreport**: Tab now properly populated with:
-  - Collection time, uname, uptime
-  - OS release information
-  - Kernel tainted status
-  - CPU vulnerabilities
-  - Memory info (free), disk usage (df -h/-i)
-  - Process snapshot
-  - Virtualization detection
+- **Oracle Linux Logo Showing as Fedora**: Fixed logo priority order
+  - Oracle Linux has `ID_LIKE="fedora"` which caused incorrect Fedora logo match
+  - Moved Oracle detection before Fedora in priority list
 
-- **Oracle Linux Identification**: Added 'ol' ID variant recognition
-  - EOL checker now correctly identifies Oracle Linux systems
-  - Logo properly displayed instead of "Unknown Distribution"
-
-### Changed
-- **CPU Details Section**: Moved to bottom of Summary page for better information hierarchy
+- **Kubernetes Log Streaming**: Logs now properly appear in `kubectl logs`
+  - Added `flush=True` to all log output for immediate streaming
+  - Added gunicorn flags: `--access-logfile -`, `--error-logfile -`, `--capture-output`
