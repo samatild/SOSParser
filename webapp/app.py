@@ -599,14 +599,16 @@ def create_app() -> Flask:
         })
         _append_log(outputs_dir, token, f"Reassembling file from {total_chunks} chunks...")
         
-        # Reassemble file from chunks
+        # Reassemble file from chunks using streaming copy
+        # Uses shutil.copyfileobj to avoid loading entire chunks into memory
         tarball_path = upload_token_dir / filename
         try:
+            import shutil
             with open(tarball_path, "wb") as outfile:
                 for i in range(total_chunks):
                     chunk_path = temp_dir / f"chunk_{i:06d}"
                     with open(chunk_path, "rb") as chunk:
-                        outfile.write(chunk.read())
+                        shutil.copyfileobj(chunk, outfile, length=64 * 1024)  # 64KB buffer
             _append_log(outputs_dir, token, f"File reassembled: {filename}")
         except Exception as e:
             _remove_dir(temp_dir)
