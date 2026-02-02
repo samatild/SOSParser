@@ -31,17 +31,22 @@ class SupportconfigUpdates:
             Dictionary with updates/zypper information
         """
         Logger.debug("Analyzing supportconfig updates")
+        Logger.memory("  Updates: start")
         
         content = self.parser.read_file('updates.txt')
+        Logger.memory("  Updates: file read")
+        
         if not content:
             return {'note': 'No updates.txt file found'}
         
         sections = self.parser.extract_sections(content)
+        Logger.memory("  Updates: sections extracted")
         
         data = {
             'package_manager': 'zypper',
             'zypper': self._parse_zypper_data(sections),
         }
+        Logger.memory("  Updates: done")
         
         return data
 

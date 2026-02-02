@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Base parser for SUSE supportconfig .txt files."""
 
+import os
 import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -25,21 +26,273 @@ class SupportconfigParser:
         """
         self.root_path = Path(root_path)
         
-    def read_file(self, filename: str) -> Optional[str]:
+    # Maximum file size to load into memory (default 50MB)
+    # Files larger than this use streaming methods to prevent OOM
+    MAX_FILE_SIZE_MB = int(os.environ.get('SCC_MAX_FILE_SIZE_MB', '50'))
+    
+    # Section header pattern for supportconfig files
+    _SECTION_PATTERN = re.compile(r'^#==\[\s*(.+?)\s*\]={5,}#\s*$')
+    
+    def read_file(self, filename: str, max_size_mb: int = None) -> Optional[str]:
         """
-        Read a supportconfig .txt file.
+        Read a supportconfig .txt file with size limit to prevent OOM.
+        
+        For large files, consider using find_section_streaming() instead.
         
         Args:
             filename: Name of the .txt file (e.g., 'hardware.txt')
+            max_size_mb: Maximum file size in MB (default: MAX_FILE_SIZE_MB)
             
         Returns:
-            File contents or None if file doesn't exist
+            File contents or None if file doesn't exist.
+            Large files are truncated with a warning message appended.
         """
+        if max_size_mb is None:
+            max_size_mb = self.MAX_FILE_SIZE_MB
+        max_bytes = max_size_mb * 1024 * 1024
+        
         file_path = self.root_path / filename
         try:
+            file_size = file_path.stat().st_size
+            
+            if file_size > max_bytes:
+                # File too large - read only up to limit
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read(max_bytes)
+                return content + f"\n\n[TRUNCATED: File {filename} is {file_size / 1024 / 1024:.1f} MB, limit is {max_size_mb} MB]"
+            
             return file_path.read_text(encoding='utf-8', errors='ignore')
         except Exception:
             return None
+    
+    def find_section_streaming(self, filename: str, header_match: str, 
+                                section_type: str = None,
+                                max_section_lines: int = 10000) -> Optional[str]:
+        """
+        Stream through a file to find a specific section without loading entire file.
+        
+        This is memory-efficient for large files - reads line by line and stops
+        as soon as the matching section is found and read.
+        
+        Args:
+            filename: Name of the .txt file
+            header_match: String to search for in section header (case-insensitive)
+            section_type: Optional section type filter (e.g., 'Command', 'File')
+            max_section_lines: Maximum lines to read from a section (safety limit)
+            
+        Returns:
+            Section content or None if not found
+        """
+        file_path = self.root_path / filename
+        if not file_path.exists():
+            return None
+        
+        header_match_lower = header_match.lower()
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                in_target_section = False
+                section_content = []
+                
+                for line in f:
+                    match = self._SECTION_PATTERN.match(line)
+                    
+                    if match:
+                        # Found a section header
+                        if in_target_section:
+                            # We were in the target section and hit the next one - done!
+                            return '\n'.join(section_content).strip()
+                        
+                        # Check if this is the section we want
+                        header = match.group(1)
+                        current_type = header.split()[0] if header else ''
+                        
+                        if header_match_lower in header.lower():
+                            if section_type is None or current_type == section_type:
+                                in_target_section = True
+                                section_content = []
+                    elif in_target_section:
+                        section_content.append(line.rstrip('\n'))
+                        if len(section_content) >= max_section_lines:
+                            # Safety limit reached
+                            return '\n'.join(section_content).strip()
+                
+                # If we reached EOF while in target section
+                if in_target_section:
+                    return '\n'.join(section_content).strip()
+                
+        except Exception:
+            pass
+        
+        return None
+    
+    def find_command_streaming(self, filename: str, command: str,
+                               max_output_lines: int = 10000) -> Optional[str]:
+        """
+        Stream through a file to find a specific command output without loading entire file.
+        
+        Memory-efficient alternative to get_command_output() for large files.
+        
+        Args:
+            filename: Name of the .txt file
+            command: Command to search for (e.g., '/bin/uname -a' or just 'uname')
+            max_output_lines: Maximum lines to read from command output
+            
+        Returns:
+            Command output or None if not found
+        """
+        file_path = self.root_path / filename
+        if not file_path.exists():
+            return None
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                in_command_section = False
+                found_command = False
+                output_lines = []
+                
+                for line in f:
+                    match = self._SECTION_PATTERN.match(line)
+                    
+                    if match:
+                        # Found a section header
+                        if found_command:
+                            # We were reading command output and hit next section - done!
+                            return '\n'.join(output_lines).strip()
+                        
+                        header = match.group(1)
+                        section_type = header.split()[0] if header else ''
+                        in_command_section = (section_type == 'Command')
+                        found_command = False
+                        output_lines = []
+                    elif in_command_section:
+                        if not found_command:
+                            # Look for the command line (starts with #)
+                            if line.startswith('#'):
+                                cmd_line = line.strip('# \n')
+                                if command in cmd_line or cmd_line.endswith(command):
+                                    found_command = True
+                        else:
+                            output_lines.append(line.rstrip('\n'))
+                            if len(output_lines) >= max_output_lines:
+                                return '\n'.join(output_lines).strip()
+                
+                # If we reached EOF while reading command output
+                if found_command:
+                    return '\n'.join(output_lines).strip()
+                
+        except Exception:
+            pass
+        
+        return None
+    
+    def find_sections_streaming(self, filename: str, 
+                                 section_filters: List[Dict[str, str]],
+                                 max_section_lines: int = 5000) -> Dict[str, Dict[str, str]]:
+        """
+        Stream through a file to find multiple sections in one pass.
+        
+        Memory-efficient for large files - reads line by line and collects
+        all matching sections without loading entire file.
+        
+        Args:
+            filename: Name of the .txt file
+            section_filters: List of filter dicts, each with:
+                - 'key': unique identifier for this section in results
+                - 'header_match': string to match in header (case-insensitive)
+                - 'section_type': optional type filter (e.g., 'Command', 'Configuration')
+            max_section_lines: Maximum lines per section (safety limit)
+            
+        Returns:
+            Dict mapping filter keys to {'header': str, 'content': str, 'type': str}
+        """
+        file_path = self.root_path / filename
+        results = {}
+        
+        if not file_path.exists():
+            return results
+        
+        # Pre-process filters for efficiency
+        filters = []
+        for f in section_filters:
+            filters.append({
+                'key': f['key'],
+                'header_match': f.get('header_match', '').lower(),
+                'section_type': f.get('section_type'),
+                'found': False
+            })
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as fh:
+                current_section = None
+                current_content = []
+                current_filter_key = None
+                line_count = 0
+                
+                for line in fh:
+                    match = self._SECTION_PATTERN.match(line)
+                    
+                    if match:
+                        # Save previous section if it matched a filter
+                        if current_filter_key and current_content:
+                            results[current_filter_key] = {
+                                'header': current_section['header'],
+                                'type': current_section['type'],
+                                'content': '\n'.join(current_content).strip()
+                            }
+                        
+                        # Check new section against filters
+                        header = match.group(1)
+                        section_type = header.split()[0] if header else ''
+                        header_lower = header.lower()
+                        
+                        current_section = {'header': header, 'type': section_type}
+                        current_content = []
+                        current_filter_key = None
+                        line_count = 0
+                        
+                        # Find matching filter
+                        for f in filters:
+                            if f['found']:
+                                continue
+                            if f['header_match'] and f['header_match'] not in header_lower:
+                                continue
+                            if f['section_type'] and f['section_type'] != section_type:
+                                continue
+                            # Match found!
+                            current_filter_key = f['key']
+                            f['found'] = True
+                            break
+                        
+                        # Check if all filters found - can exit early
+                        if all(f['found'] for f in filters):
+                            # Continue reading current section, then exit
+                            pass
+                            
+                    elif current_filter_key:
+                        current_content.append(line.rstrip('\n'))
+                        line_count += 1
+                        if line_count >= max_section_lines:
+                            # Safety limit - save and stop collecting this section
+                            results[current_filter_key] = {
+                                'header': current_section['header'],
+                                'type': current_section['type'],
+                                'content': '\n'.join(current_content).strip()
+                            }
+                            current_filter_key = None
+                
+                # Handle last section
+                if current_filter_key and current_content:
+                    results[current_filter_key] = {
+                        'header': current_section['header'],
+                        'type': current_section['type'],
+                        'content': '\n'.join(current_content).strip()
+                    }
+                    
+        except Exception:
+            pass
+        
+        return results
     
     def read_file_tail(self, filename: str, lines: int = 1000) -> Optional[str]:
         """

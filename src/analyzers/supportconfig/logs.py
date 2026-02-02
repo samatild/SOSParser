@@ -8,6 +8,7 @@ from .logs_analyzers.system_logs import SystemLogsAnalyzer
 from .logs_analyzers.kernel_logs import KernelLogsAnalyzer
 from .logs_analyzers.auth_logs import AuthLogsAnalyzer
 from .logs_analyzers.services_logs import ServicesLogsAnalyzer
+from utils.logger import Logger
 
 
 class SupportconfigLogs:
@@ -30,9 +31,23 @@ class SupportconfigLogs:
         Returns:
             Dictionary with log information
         """
+        Logger.memory("  Logs: start")
+        
+        system = SystemLogsAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Logs: system done")
+        
+        kernel = KernelLogsAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Logs: kernel done")
+        
+        auth = AuthLogsAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Logs: auth done")
+        
+        services = ServicesLogsAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  Logs: services done")
+        
         return {
-            'system': SystemLogsAnalyzer(self.root_path, self.parser).analyze(),
-            'kernel': KernelLogsAnalyzer(self.root_path, self.parser).analyze(),
-            'auth': AuthLogsAnalyzer(self.root_path, self.parser).analyze(),
-            'services': ServicesLogsAnalyzer(self.root_path, self.parser).analyze(),
+            'system': system,
+            'kernel': kernel,
+            'auth': auth,
+            'services': services,
         }

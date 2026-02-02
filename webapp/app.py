@@ -240,6 +240,10 @@ def create_app() -> Flask:
     # Public mode: no report storage, no saved reports browser
     public_mode = os.environ.get("PUBLIC_MODE", "false").lower() in ("true", "1", "yes")
     app.config["PUBLIC_MODE"] = public_mode
+    
+    # Debug mode: enables memory tracking and verbose logging
+    debug_mode = os.environ.get("WEBAPP_DEBUG", "false").lower() in ("true", "1", "yes")
+    app.config["DEBUG_MODE"] = debug_mode
     base_dir = Path(__file__).parent
     uploads_dir = base_dir / "uploads"
     outputs_dir = base_dir / "outputs"
@@ -314,7 +318,7 @@ def create_app() -> Flask:
         try:
             output_report_path = run_analysis(
                 str(tarball_path),
-                debug_mode=False,
+                debug_mode=app.config.get("DEBUG_MODE", False),
                 save_next_to_tarball=False,
                 output_dir_override=str(output_token_dir),
             )
@@ -516,7 +520,7 @@ def create_app() -> Flask:
             try:
                 output_report_path = run_analysis(
                     tarball_path,
-                    debug_mode=False,
+                    debug_mode=app.config.get("DEBUG_MODE", False),
                     save_next_to_tarball=False,
                     output_dir_override=output_dir,
                 )

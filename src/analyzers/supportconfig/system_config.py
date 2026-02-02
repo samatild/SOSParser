@@ -23,6 +23,7 @@ from .config_analyzers.containers import ContainersConfigAnalyzer
 from .config_analyzers.crash import CrashConfigAnalyzer
 from .config_analyzers.sssd import SSSDConfigAnalyzer
 from .config_analyzers.ntp import NTPConfigAnalyzer
+from utils.logger import Logger
 
 
 class SupportconfigSystemConfig:
@@ -35,18 +36,59 @@ class SupportconfigSystemConfig:
     
     def analyze(self) -> Dict[str, Any]:
         """Run all system config analysis."""
+        Logger.memory("  SysConfig: start")
+        
+        general = GeneralConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  SysConfig: general done")
+        
+        boot = BootConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  SysConfig: boot done")
+        
+        authentication = AuthenticationConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  SysConfig: authentication done")
+        
+        ssh_runtime = SSHRuntimeConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  SysConfig: ssh_runtime done")
+        
+        services = ServicesConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  SysConfig: services done")
+        
+        cron = CronConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  SysConfig: cron done")
+        
+        security = SecurityConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  SysConfig: security done")
+        
+        packages = PackagesConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  SysConfig: packages done")
+        
+        kernel_modules = KernelModulesConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  SysConfig: kernel_modules done")
+        
+        crash = CrashConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  SysConfig: crash done")
+        
+        containers = ContainersConfigAnalyzer(self.root_path).analyze()
+        Logger.memory("  SysConfig: containers done")
+        
+        sssd = SSSDConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  SysConfig: sssd done")
+        
+        ntp = NTPConfigAnalyzer(self.root_path, self.parser).analyze()
+        Logger.memory("  SysConfig: ntp done")
+        
         return {
-            'general': GeneralConfigAnalyzer(self.root_path, self.parser).analyze(),
-            'boot': BootConfigAnalyzer(self.root_path, self.parser).analyze(),
-            'authentication': AuthenticationConfigAnalyzer(self.root_path, self.parser).analyze(),
-            'ssh_runtime': SSHRuntimeConfigAnalyzer(self.root_path, self.parser).analyze(),
-            'services': ServicesConfigAnalyzer(self.root_path, self.parser).analyze(),
-            'cron': CronConfigAnalyzer(self.root_path, self.parser).analyze(),
-            'security': SecurityConfigAnalyzer(self.root_path, self.parser).analyze(),
-            'packages': PackagesConfigAnalyzer(self.root_path, self.parser).analyze(),
-            'kernel_modules': KernelModulesConfigAnalyzer(self.root_path, self.parser).analyze(),
-            'crash': CrashConfigAnalyzer(self.root_path, self.parser).analyze(),
-            'containers': ContainersConfigAnalyzer(self.root_path).analyze(),
-            'sssd': SSSDConfigAnalyzer(self.root_path, self.parser).analyze(),
-            'ntp': NTPConfigAnalyzer(self.root_path, self.parser).analyze(),
+            'general': general,
+            'boot': boot,
+            'authentication': authentication,
+            'ssh_runtime': ssh_runtime,
+            'services': services,
+            'cron': cron,
+            'security': security,
+            'packages': packages,
+            'kernel_modules': kernel_modules,
+            'crash': crash,
+            'containers': containers,
+            'sssd': sssd,
+            'ntp': ntp,
         }

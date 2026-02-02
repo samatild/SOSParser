@@ -84,7 +84,7 @@ class SupportconfigSystemInfo:
         """Extract kernel information."""
         kernel_info = {}
         
-        # Get kernel version from uname
+        # Get kernel version from uname (small file, safe to use get_command_output)
         uname = self.parser.get_command_output('basic-environment.txt', '/bin/uname -a')
         if uname:
             parts = uname.split()
@@ -92,14 +92,11 @@ class SupportconfigSystemInfo:
                 kernel_info['version'] = parts[2]
                 kernel_info['full'] = uname.strip()
         
-        # Get running kernel from boot.txt
-        content = self.parser.read_file('boot.txt')
-        if content:
-            sections = self.parser.extract_sections(content)
-            for section in sections:
-                if 'running kernel' in section['header'].lower():
-                    kernel_info['running'] = section['content'].strip()
-                    break
+        # Get running kernel from boot.txt using streaming (boot.txt can be very large)
+        # This reads line-by-line and stops as soon as we find the section
+        running_kernel = self.parser.find_section_streaming('boot.txt', 'running kernel')
+        if running_kernel:
+            kernel_info['running'] = running_kernel.strip()
         
         return kernel_info
     
