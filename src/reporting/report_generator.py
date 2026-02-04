@@ -67,6 +67,7 @@ def prepare_report_data(
     format_type: str = 'unknown',
     updates: Dict[str, Any] = None,
     processes: Dict[str, Any] = None,
+    sar: Dict[str, Any] = None,
 ) -> Dict[str, Any]:
     """
     Prepare the report data dictionary.
@@ -118,6 +119,7 @@ def prepare_report_data(
         'cloud': cloud,
         'updates': updates,
         'processes': processes or {},
+        'sar': sar or {'available': False},
         'scenarios': format_scenario_results(scenario_results),
     }
 

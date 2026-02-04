@@ -1,0 +1,105 @@
+/* SAR (System Activity Reporter) Styles */
+
+#sar-container {
+    padding: 1rem 0;
+}
+
+.sar-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+.sar-nav-button {
+    padding: 0.5rem 1rem;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.sar-nav-button:hover:not(:disabled) {
+    background: var(--accent-secondary);
+}
+
+.sar-nav-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.sar-day-selector {
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.sar-day-selector:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.sar-graphs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.sar-graph-section {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sar-graph-section h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+}
+
+.sar-graph {
+    position: relative;
+    height: 400px !important;
+    max-height: 400px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block;
+    box-sizing: border-box;
+}
+
+.sar-graph-section {
+    overflow: hidden;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .sar-navigation {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .sar-nav-button {
+        width: 100%;
+    }
+    
+    .sar-day-selector {
+        width: 100%;
+    }
+    
+    .sar-graph {
+        height: 300px;
+    }
+}

@@ -18,6 +18,7 @@ from analyzers.logs.logs import LogAnalyzer
 from analyzers.cloud.cloud import CloudAnalyzer
 from analyzers.updates.updates import UpdatesAnalyzer
 from analyzers.process.process import ProcessAnalyzer
+from analyzers.sar.sar import SarAnalyzer
 from analyzers.scenarios.scenario_analyzer import BaseScenarioAnalyzer
 
 # Supportconfig analyzers
@@ -90,6 +91,7 @@ class SOSReportAnalyzer:
         self.cloud_analyzer = CloudAnalyzer()
         self.updates_analyzer = UpdatesAnalyzer()
         self.process_analyzer = ProcessAnalyzer()
+        self.sar_analyzer = SarAnalyzer()
         Logger.debug("Analyzers initialized.")
         
         # Initialize scenario analyzers
@@ -208,11 +210,17 @@ class SOSReportAnalyzer:
         processes = process_analyzer.analyze()
         Logger.memory("Processes analysis complete")
         
+        # Analyze SAR data (supportconfig may also have sar files)
+        Logger.debug("Analyzing SAR data (supportconfig)")
+        sar_analyzer = SarAnalyzer()
+        sar = sar_analyzer.analyze(extracted_dir)
+        Logger.memory("SAR analysis complete")
+        
         # Construct enhanced summary for supportconfig
         # Summary is already populated by the summary analyzer
         Logger.memory("SCC analysis finished - returning results")
 
-        return (summary, system_config, filesystem, network, logs, cloud, updates, processes)
+        return (summary, system_config, filesystem, network, logs, cloud, updates, processes, sar)
     
     def generate_report(self):
         """Generate the analysis report"""
@@ -351,9 +359,13 @@ class SOSReportAnalyzer:
                 Logger.debug("Analyzing processes.")
                 processes = self.process_analyzer.analyze(extracted_dir)
                 
+                # Analyze SAR data
+                Logger.debug("Analyzing SAR data.")
+                sar = self.sar_analyzer.analyze(extracted_dir)
+                
             elif format_type == 'supportconfig':
                 Logger.debug("Using Supportconfig analyzers")
-                (summary, system_config, filesystem, network, logs, cloud, updates, processes) = self.analyze_supportconfig(extracted_dir)
+                (summary, system_config, filesystem, network, logs, cloud, updates, processes, sar) = self.analyze_supportconfig(extracted_dir)
 
                 # Extract individual fields from summary for compatibility
                 hostname = summary['hostname']
@@ -428,6 +440,7 @@ class SOSReportAnalyzer:
                 format_type=format_type,
                 updates=updates,
                 processes=processes,
+                sar=sar,
             )
             Logger.memory("After prepare_report_data")
             
