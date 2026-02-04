@@ -28,6 +28,7 @@ class SarViewer {
         // Define all available plot types with their metadata
         this.plotTypes = {
             cpu: { name: 'CPU Utilization', dataKey: 'cpu', group: 'CPU & Process' },
+            cpu_detailed: { name: 'CPU Utilization - Per Core', dataKey: 'cpu', group: 'CPU & Process' },
             process: { name: 'Process Creation & Context Switches', dataKey: 'process', group: 'CPU & Process' },
             softnet: { name: 'Softnet Statistics', dataKey: 'softnet', group: 'CPU & Process' },
             load: { name: 'Load Average', dataKey: 'load', group: 'System' },
@@ -248,6 +249,7 @@ class SarViewer {
     getChartCreator(plotType) {
         const creators = {
             cpu: this.createCpuChart,
+            cpu_detailed: this.createCpuDetailedChart,
             process: this.createProcessChart,
             paging: this.createPagingChart,
             swap_paging: this.createSwapPagingChart,
@@ -416,6 +418,93 @@ class SarViewer {
         const config = this.getChartConfig('CPU Utilization Over Time', 'Percentage (%)', datasets, labels, { max: 100 });
         const ctx = canvas.getContext('2d');
         this.chart = new Chart(ctx, config);
+    }
+    
+    createCpuDetailedChart(data) {
+        const canvas = document.getElementById('sar-graph');
+        if (!data.cpu || data.cpu.length === 0) {
+            this.showNoDataMessage(canvas, 'No CPU data available for this day.');
+            return;
+        }
+        
+        // Get unique CPU cores (excluding 'all')
+        const cpuCores = [...new Set(data.cpu.filter(d => d.cpu !== 'all').map(d => d.cpu))].sort((a, b) => {
+            // Sort numerically
+            const numA = parseInt(a, 10);
+            const numB = parseInt(b, 10);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            return a.localeCompare(b);
+        });
+        
+        if (cpuCores.length === 0) {
+            this.showNoDataMessage(canvas, 'No per-core CPU data available.');
+            return;
+        }
+        
+        // Get time labels from the first core
+        const firstCoreData = data.cpu.filter(d => d.cpu === cpuCores[0]);
+        const labels = firstCoreData.map(d => d.time);
+        
+        // Generate distinct colors for each core
+        const coreColors = this.generateCoreColors(cpuCores.length);
+        
+        // Create datasets - one line per CPU core showing utilization
+        const datasets = cpuCores.map((core, index) => {
+            const coreData = data.cpu.filter(d => d.cpu === core);
+            return {
+                label: `CPU ${core}`,
+                data: coreData.map(d => d.utilization || (100 - (d.idle || 0))),
+                borderColor: coreColors[index].border,
+                backgroundColor: coreColors[index].bg,
+                tension: 0.1,
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4
+            };
+        });
+        
+        const config = this.getChartConfig(
+            `CPU Utilization Per Core (${cpuCores.length} cores)`, 
+            'Utilization (%)', 
+            datasets, 
+            labels, 
+            { max: 100 }
+        );
+        const ctx = canvas.getContext('2d');
+        this.chart = new Chart(ctx, config);
+    }
+    
+    // Generate distinct colors for multiple CPU cores
+    generateCoreColors(count) {
+        const baseColors = [
+            { border: 'rgba(54, 162, 235, 1)', bg: 'rgba(54, 162, 235, 0.1)' },    // Blue
+            { border: 'rgba(255, 99, 132, 1)', bg: 'rgba(255, 99, 132, 0.1)' },    // Red
+            { border: 'rgba(75, 192, 192, 1)', bg: 'rgba(75, 192, 192, 0.1)' },    // Teal
+            { border: 'rgba(255, 159, 64, 1)', bg: 'rgba(255, 159, 64, 0.1)' },    // Orange
+            { border: 'rgba(153, 102, 255, 1)', bg: 'rgba(153, 102, 255, 0.1)' },  // Purple
+            { border: 'rgba(255, 205, 86, 1)', bg: 'rgba(255, 205, 86, 0.1)' },    // Yellow
+            { border: 'rgba(201, 203, 207, 1)', bg: 'rgba(201, 203, 207, 0.1)' },  // Grey
+            { border: 'rgba(0, 128, 0, 1)', bg: 'rgba(0, 128, 0, 0.1)' },          // Green
+            { border: 'rgba(128, 0, 128, 1)', bg: 'rgba(128, 0, 128, 0.1)' },      // Dark Purple
+            { border: 'rgba(0, 128, 128, 1)', bg: 'rgba(0, 128, 128, 0.1)' },      // Dark Teal
+            { border: 'rgba(255, 0, 255, 1)', bg: 'rgba(255, 0, 255, 0.1)' },      // Magenta
+            { border: 'rgba(128, 128, 0, 1)', bg: 'rgba(128, 128, 0, 0.1)' },      // Olive
+        ];
+        
+        const colors = [];
+        for (let i = 0; i < count; i++) {
+            if (i < baseColors.length) {
+                colors.push(baseColors[i]);
+            } else {
+                // Generate additional colors using HSL for variety
+                const hue = (i * 137.5) % 360; // Golden angle for good distribution
+                colors.push({
+                    border: `hsla(${hue}, 70%, 50%, 1)`,
+                    bg: `hsla(${hue}, 70%, 50%, 0.1)`
+                });
+            }
+        }
+        return colors;
     }
     
     createProcessChart(data) {
