@@ -1,18 +1,13 @@
-## [0.2.19] - 2026-02-02
-
-### Fixed
-- **Critical Memory Optimization for Supportconfig**: Reduces peak memory from ~3.2GB to ~150MB
-  - `boot.txt` streaming: New `find_sections_streaming()` method reads large files line-by-line
-  - `BootConfigAnalyzer` now streams through boot.txt finding only needed sections (was loading entire file)
-  - `ProviderDetector` fixed to read only first N bytes instead of loading entire file then truncating
-  - `get_kernel_info()` uses streaming to find "running kernel" section without loading boot.txt
-  - Peak memory during supportconfig analysis reduced from 946MB to ~150MB
+## [0.2.20] - 2026-02-04
 
 ### Added
-- **Memory Profiling Tools** (debug mode only):
-  - `Logger.memory(phase)` - logs RSS and Peak memory at checkpoints
-  - Tracks VmHWM (High Water Mark) to catch transient memory spikes
-  - Granular tracking in all supportconfig sub-analyzers
-  - Enable with `WEBAPP_DEBUG=1` environment variable
+- **Process Information (SOS and SCC)**: New Processes tab with detailed process analysis for both sosreport and supportconfig
+  - **Subtabs**: Process Tree (collapsible pstree), Process Utilization (ps snapshots), Process IO, Process Handlers (lsof), Process Stats (pidstat)
 
----
+- **SAR Dynamic Graphs**: New SAR tab with interactive time-series charts for both sosreport and supportconfig
+  - **Single dynamic graph** with dropdown selector organized by category
+  - **18 metric categories**: CPU Utilization, CPU Per-Core, Process Creation, Softnet, Memory, Swap, Swap Paging, Hugepages, Paging, I/O Transfer, Block Device, Filesystem, Network Interface, Network Errors, Sockets, NFS Client/Server, Load Average, TTY
+  - **CPU Per-Core chart**: Individual utilization line per core with auto-generated colors
+  - **Day navigation**: Dropdown + Previous/Next buttons with actual dates (e.g., "Dec 11, 2025")
+  - **Supportconfig support**: Parses `sar/` directory (both `.xz` compressed and uncompressed files)
+  - Implemented with Chart.js; fixed-height canvas

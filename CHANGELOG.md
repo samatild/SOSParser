@@ -17,19 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Process Information (SOS and SCC)**: New Processes tab with detailed process analysis for both sosreport and supportconfig
-  - **Main tab**: Processes (shown when process utilization or process handlers data is available)
-  - **Subtabs**:
-    - **Process Tree**: Collapsible pstree visualization with Expand All / Collapse All controls
-    - **Process Utilization**: ps snapshots (ps_axwwo, ps_auxwwwm, ps_auxfwww, ps_auxwww, ps_alxwww, ps_elfL)
-    - **Process IO**: Process I/O statistics output
-    - **Process Handlers**: lsof output (open files, network, etc.)
-    - **Process Stats**: pidstat output (pidstat -p ALL, pidstat -tl)
-- **SAR Dynamic Graphs**: New SAR tab (before Logs) when `/var/log/sa` is present with sar files
-  - Parses sar files (not sa binary files) and builds interactive time-series charts
-  - **Navigation**: Day selector dropdown, Previous / Next buttons to move between available days
-  - **Charts**: CPU utilization (total, user, system, I/O wait), Load average (1/5/15 min), Memory usage (free/used)
-  - Implemented with Chart.js; fixed-height canvas to avoid layout growth
-  - Supported for both sosreport and supportconfig (when sar data is collected)
+  - **Subtabs**: Process Tree (collapsible pstree), Process Utilization (ps snapshots), Process IO, Process Handlers (lsof), Process Stats (pidstat)
+
+- **SAR Dynamic Graphs**: New SAR tab with interactive time-series charts for both sosreport and supportconfig
+  - **Single dynamic graph** with dropdown selector organized by category
+  - **18 metric categories**: CPU Utilization, CPU Per-Core, Process Creation, Softnet, Memory, Swap, Swap Paging, Hugepages, Paging, I/O Transfer, Block Device, Filesystem, Network Interface, Network Errors, Sockets, NFS Client/Server, Load Average, TTY
+  - **CPU Per-Core chart**: Individual utilization line per core with auto-generated colors
+  - **Day navigation**: Dropdown + Previous/Next buttons with actual dates (e.g., "Dec 11, 2025")
+  - **Supportconfig support**: Parses `sar/` directory (both `.xz` compressed and uncompressed files)
+  - Implemented with Chart.js; fixed-height canvas
 
 ---
 
