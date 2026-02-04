@@ -3,12 +3,54 @@
 
 from pathlib import Path
 from typing import Dict, List, Optional, Any
+from datetime import datetime, timedelta
+from calendar import monthrange
 import re
 from utils.logger import Logger
 
 
 class SarAnalyzer:
     """Analyze SAR data from /var/log/sa directory"""
+    
+    # Section detection patterns - order matters for proper detection
+    SECTION_PATTERNS = [
+        # CPU Utilization - must check before other CPU patterns
+        ('cpu', lambda l: 'CPU' in l and '%usr' in l and '%idle' in l),
+        # Process Creation
+        ('process', lambda l: 'proc/s' in l and 'cswch/s' in l),
+        # Swap Paging (pswpin/s pswpout/s) - must be before general paging
+        ('swap_paging', lambda l: 'pswpin/s' in l and 'pswpout/s' in l),
+        # Paging Statistics  
+        ('paging', lambda l: 'pgpgin/s' in l or ('fault/s' in l and 'pgfree/s' in l)),
+        # I/O Transfer Rates
+        ('io_transfer', lambda l: ('tps' in l and 'bread/s' in l) or ('rtps' in l and 'wtps' in l)),
+        # Memory Utilization
+        ('memory', lambda l: 'kbmemfree' in l and 'kbmemused' in l),
+        # Swap Utilization
+        ('swap', lambda l: 'kbswpfree' in l and 'kbswpused' in l),
+        # Hugepages Utilization
+        ('hugepages', lambda l: 'kbhugfree' in l and 'kbhugused' in l),
+        # Filesystem Utilization
+        ('filesystem', lambda l: 'dentunusd' in l or 'file-nr' in l),
+        # Load Average
+        ('load', lambda l: 'runq-sz' in l and 'ldavg-1' in l),
+        # Serial/TTY
+        ('tty', lambda l: 'TTY' in l and 'rcvin/s' in l),
+        # Block Device Statistics
+        ('block_device', lambda l: 'DEV' in l and '%util' in l and 'await' in l),
+        # Network Interface Stats
+        ('network', lambda l: 'IFACE' in l and 'rxpck/s' in l and '%ifutil' in l),
+        # Network Error Stats
+        ('network_errors', lambda l: 'IFACE' in l and 'rxerr/s' in l),
+        # NFS Client RPC Stats
+        ('nfs_client', lambda l: 'call/s' in l and 'retrans/s' in l and 'read/s' in l and 'scall/s' not in l),
+        # NFS Server RPC Stats
+        ('nfs_server', lambda l: 'scall/s' in l and 'badcall/s' in l),
+        # Socket Usage
+        ('sockets', lambda l: 'totsck' in l and 'tcpsck' in l),
+        # Softnet Stats
+        ('softnet', lambda l: 'CPU' in l and 'total/s' in l and 'dropd/s' in l),
+    ]
     
     def analyze(self, base_path: Path) -> Dict[str, Any]:
         """Analyze SAR files from /var/log/sa directory"""
@@ -29,6 +71,10 @@ class SarAnalyzer:
         
         Logger.debug(f"Found {len(sar_files)} SAR files")
         
+        # Get collection date for accurate day labeling
+        collection_date = self._get_collection_date(base_path)
+        Logger.debug(f"Collection date: {collection_date}")
+        
         # Parse each SAR file
         sar_data = {}
         for sar_file in sar_files:
@@ -36,23 +82,126 @@ class SarAnalyzer:
             if day_number:
                 parsed_data = self._parse_sar_file(sar_file)
                 if parsed_data:
+                    # Calculate actual date for this SAR file
+                    actual_date = self._calculate_sar_date(day_number, collection_date)
                     sar_data[day_number] = {
                         'filename': sar_file.name,
-                        'data': parsed_data
+                        'data': parsed_data,
+                        'date': actual_date.strftime('%Y-%m-%d') if actual_date else None,
+                        'date_display': actual_date.strftime('%b %d, %Y') if actual_date else f'Day {day_number}'
                     }
         
         if not sar_data:
             return {'available': False}
         
-        # Get list of available days for navigation
-        available_days = sorted(sar_data.keys())
+        # Get list of available days for navigation (sorted by actual date if available)
+        available_days = sorted(sar_data.keys(), 
+                               key=lambda d: sar_data[d].get('date') or f'{d:02d}')
         
         return {
             'available': True,
             'files': sar_data,
             'available_days': available_days,
-            'total_days': len(available_days)
+            'total_days': len(available_days),
+            'collection_date': collection_date.strftime('%Y-%m-%d') if collection_date else None
         }
+    
+    def _get_collection_date(self, base_path: Path) -> Optional[datetime]:
+        """
+        Get the collection date from the sosreport/supportconfig.
+        
+        Tries multiple sources:
+        1. sos_commands/date/date_--utc (sosreport)
+        2. basic-environment.txt (supportconfig) 
+        3. date.txt (supportconfig)
+        """
+        # Try sosreport date file
+        date_file = base_path / 'sos_commands' / 'date' / 'date_--utc'
+        if date_file.exists():
+            try:
+                content = date_file.read_text(encoding='utf-8', errors='ignore').strip()
+                # Format: "Tue Dec 16 12:01:36 UTC 2025"
+                # Parse: weekday month day time timezone year
+                parsed = datetime.strptime(content, '%a %b %d %H:%M:%S %Z %Y')
+                return parsed
+            except (ValueError, OSError) as e:
+                Logger.debug(f"Failed to parse date file: {e}")
+        
+        # Try alternate sosreport date file (without UTC)
+        date_file_alt = base_path / 'sos_commands' / 'date' / 'date'
+        if date_file_alt.exists():
+            try:
+                content = date_file_alt.read_text(encoding='utf-8', errors='ignore').strip()
+                # Try various date formats
+                for fmt in ['%a %b %d %H:%M:%S %Z %Y', '%a %b %d %H:%M:%S %Y']:
+                    try:
+                        parsed = datetime.strptime(content, fmt)
+                        return parsed
+                    except ValueError:
+                        continue
+            except OSError as e:
+                Logger.debug(f"Failed to read alt date file: {e}")
+        
+        # Try supportconfig basic-environment.txt
+        basic_env = base_path / 'basic-environment.txt'
+        if basic_env.exists():
+            try:
+                content = basic_env.read_text(encoding='utf-8', errors='ignore')
+                # Look for date line like "# /bin/date"
+                for line in content.split('\n'):
+                    if line.strip() and not line.startswith('#'):
+                        # Try to parse as date
+                        for fmt in ['%a %b %d %H:%M:%S %Z %Y', '%a %b %d %H:%M:%S %Y']:
+                            try:
+                                parsed = datetime.strptime(line.strip(), fmt)
+                                return parsed
+                            except ValueError:
+                                continue
+            except OSError as e:
+                Logger.debug(f"Failed to read basic-environment.txt: {e}")
+        
+        Logger.debug("Could not determine collection date")
+        return None
+    
+    def _calculate_sar_date(self, day_number: int, collection_date: Optional[datetime]) -> Optional[datetime]:
+        """
+        Calculate the actual date for a SAR file based on its day number.
+        
+        SAR files are named by day of month (sar01-sar31).
+        If day_number > collection_day, it's from the previous month.
+        """
+        if not collection_date:
+            return None
+        
+        collection_day = collection_date.day
+        collection_month = collection_date.month
+        collection_year = collection_date.year
+        
+        if day_number <= collection_day:
+            # Same month as collection
+            try:
+                return datetime(collection_year, collection_month, day_number)
+            except ValueError:
+                # Invalid day for this month
+                return None
+        else:
+            # Previous month
+            if collection_month == 1:
+                prev_month = 12
+                prev_year = collection_year - 1
+            else:
+                prev_month = collection_month - 1
+                prev_year = collection_year
+            
+            # Validate the day exists in previous month
+            _, max_day = monthrange(prev_year, prev_month)
+            if day_number <= max_day:
+                try:
+                    return datetime(prev_year, prev_month, day_number)
+                except ValueError:
+                    return None
+            else:
+                return None
     
     def _extract_day_number(self, filename: str) -> Optional[int]:
         """Extract day number from sar filename (e.g., sar29 -> 29)"""
@@ -62,6 +211,13 @@ class SarAnalyzer:
                 return int(match.group(1))
             except ValueError:
                 pass
+        return None
+    
+    def _detect_section(self, line: str) -> Optional[str]:
+        """Detect section type from header line"""
+        for section_name, pattern_func in self.SECTION_PATTERNS:
+            if pattern_func(line):
+                return section_name
         return None
     
     def _parse_sar_file(self, sar_file: Path) -> Dict[str, Any]:
@@ -75,10 +231,23 @@ class SarAnalyzer:
         parsed = {
             'header': None,
             'cpu': [],
-            'load': [],
+            'process': [],
+            'swap_paging': [],
+            'paging': [],
+            'io_transfer': [],
             'memory': [],
+            'swap': [],
+            'hugepages': [],
+            'filesystem': [],
+            'load': [],
+            'tty': [],
+            'block_device': [],
             'network': [],
-            'disk': []
+            'network_errors': [],
+            'nfs_client': [],
+            'nfs_server': [],
+            'sockets': [],
+            'softnet': []
         }
         
         lines = content.split('\n')
@@ -95,35 +264,16 @@ class SarAnalyzer:
                 i += 1
                 continue
             
-            # Detect section headers
-            if 'CPU' in line and '%usr' in line:
-                current_section = 'cpu'
-                section_headers['cpu'] = line
-                i += 1
-                continue
-            elif 'runq-sz' in line or 'ldavg' in line:
-                current_section = 'load'
-                section_headers['load'] = line
-                i += 1
-                continue
-            elif 'kbmemfree' in line or 'memfree' in line or 'kbswpfree' in line:
-                current_section = 'memory'
-                section_headers['memory'] = line
-                i += 1
-                continue
-            elif 'IFACE' in line or 'rxpck' in line or 'rxkB' in line:
-                current_section = 'network'
-                section_headers['network'] = line
-                i += 1
-                continue
-            elif 'DEV' in line or 'tps' in line or 'rd_sec' in line:
-                current_section = 'disk'
-                section_headers['disk'] = line
+            # Skip empty lines and average lines
+            if not line or line.startswith('Average:'):
                 i += 1
                 continue
             
-            # Skip empty lines and average lines (we'll handle them separately)
-            if not line or line.startswith('Average:'):
+            # Try to detect section header
+            detected_section = self._detect_section(line)
+            if detected_section:
+                current_section = detected_section
+                section_headers[current_section] = line
                 i += 1
                 continue
             
@@ -137,11 +287,6 @@ class SarAnalyzer:
                     if data_line:
                         data_line['time'] = time_str
                         parsed[current_section].append(data_line)
-                # Also check for section transitions (new section headers)
-                elif any(keyword in line for keyword in ['CPU', 'runq-sz', 'kbmemfree', 'IFACE', 'DEV']):
-                    # This might be a new section starting, reset current_section
-                    # But don't reset here, let the section detection above handle it
-                    pass
             
             i += 1
         
@@ -158,10 +303,10 @@ class SarAnalyzer:
         
         data = {}
         
-        if section == 'cpu':
-            # Format: HH:MM:SS CPU %usr %nice %sys %iowait %steal %irq %soft %guest %gnice %idle
-            if len(parts) >= 11:
-                try:
+        try:
+            if section == 'cpu':
+                # Format: HH:MM:SS CPU %usr %nice %sys %iowait %steal %irq %soft %guest %gnice %idle
+                if len(parts) >= 12:
                     data['cpu'] = parts[1] if parts[1] != 'all' else 'all'
                     data['usr'] = float(parts[2])
                     data['nice'] = float(parts[3])
@@ -173,80 +318,195 @@ class SarAnalyzer:
                     data['guest'] = float(parts[9])
                     data['gnice'] = float(parts[10])
                     data['idle'] = float(parts[11])
-                    data['utilization'] = 100.0 - data['idle']  # Calculate utilization
-                except (ValueError, IndexError):
-                    return None
-        
-        elif section == 'load':
-            # Format: HH:MM:SS runq-sz plist-sz ldavg-1 ldavg-5 ldavg-15 blocked
-            if len(parts) >= 7:
-                try:
+                    data['utilization'] = 100.0 - data['idle']
+                    
+            elif section == 'process':
+                # Format: HH:MM:SS proc/s cswch/s
+                if len(parts) >= 3:
+                    data['proc_s'] = float(parts[1])
+                    data['cswch_s'] = float(parts[2])
+            
+            elif section == 'swap_paging':
+                # Format: HH:MM:SS pswpin/s pswpout/s
+                if len(parts) >= 3:
+                    data['pswpin_s'] = float(parts[1])
+                    data['pswpout_s'] = float(parts[2])
+                    
+            elif section == 'paging':
+                # Format: HH:MM:SS pgpgin/s pgpgout/s fault/s majflt/s pgfree/s pgscank/s pgscand/s pgsteal/s %vmeff
+                if len(parts) >= 10:
+                    data['pgpgin_s'] = float(parts[1])
+                    data['pgpgout_s'] = float(parts[2])
+                    data['fault_s'] = float(parts[3])
+                    data['majflt_s'] = float(parts[4])
+                    data['pgfree_s'] = float(parts[5])
+                    data['pgscank_s'] = float(parts[6])
+                    data['pgscand_s'] = float(parts[7])
+                    data['pgsteal_s'] = float(parts[8])
+                    data['vmeff'] = float(parts[9])
+                    
+            elif section == 'io_transfer':
+                # Format: HH:MM:SS tps rtps wtps bread/s bwrtn/s
+                if len(parts) >= 6:
+                    data['tps'] = float(parts[1])
+                    data['rtps'] = float(parts[2])
+                    data['wtps'] = float(parts[3])
+                    data['bread_s'] = float(parts[4])
+                    data['bwrtn_s'] = float(parts[5])
+                    
+            elif section == 'memory':
+                # Format: HH:MM:SS kbmemfree kbavail kbmemused %memused kbbuffers kbcached kbcommit %commit kbactive kbinact kbdirty kbanonpg kbslab kbkstack kbpgtbl kbvmused
+                if len(parts) >= 17:
+                    data['kbmemfree'] = float(parts[1])
+                    data['kbavail'] = float(parts[2])
+                    data['kbmemused'] = float(parts[3])
+                    data['memused_pct'] = float(parts[4])
+                    data['kbbuffers'] = float(parts[5])
+                    data['kbcached'] = float(parts[6])
+                    data['kbcommit'] = float(parts[7])
+                    data['commit_pct'] = float(parts[8])
+                    data['kbactive'] = float(parts[9])
+                    data['kbinact'] = float(parts[10])
+                    data['kbdirty'] = float(parts[11])
+                elif len(parts) >= 5:
+                    # Minimal memory format
+                    data['kbmemfree'] = float(parts[1])
+                    data['kbavail'] = float(parts[2]) if len(parts) > 2 else 0
+                    data['kbmemused'] = float(parts[3]) if len(parts) > 3 else 0
+                    data['memused_pct'] = float(parts[4]) if len(parts) > 4 else 0
+                    
+            elif section == 'swap':
+                # Format: HH:MM:SS kbswpfree kbswpused %swpused kbswpcad %swpcad
+                if len(parts) >= 6:
+                    data['kbswpfree'] = float(parts[1])
+                    data['kbswpused'] = float(parts[2])
+                    data['swpused_pct'] = float(parts[3])
+                    data['kbswpcad'] = float(parts[4])
+                    data['swpcad_pct'] = float(parts[5])
+                    
+            elif section == 'hugepages':
+                # Format: HH:MM:SS kbhugfree kbhugused %hugused
+                if len(parts) >= 4:
+                    data['kbhugfree'] = float(parts[1])
+                    data['kbhugused'] = float(parts[2])
+                    data['hugused_pct'] = float(parts[3])
+                    
+            elif section == 'filesystem':
+                # Format: HH:MM:SS dentunusd file-nr inode-nr pty-nr
+                if len(parts) >= 5:
+                    data['dentunusd'] = int(parts[1])
+                    data['file_nr'] = int(parts[2])
+                    data['inode_nr'] = int(parts[3])
+                    data['pty_nr'] = int(parts[4])
+                    
+            elif section == 'load':
+                # Format: HH:MM:SS runq-sz plist-sz ldavg-1 ldavg-5 ldavg-15 blocked
+                if len(parts) >= 7:
                     data['runq_sz'] = int(parts[1])
                     data['plist_sz'] = int(parts[2])
                     data['ldavg_1'] = float(parts[3])
                     data['ldavg_5'] = float(parts[4])
                     data['ldavg_15'] = float(parts[5])
                     data['blocked'] = int(parts[6])
-                except (ValueError, IndexError):
-                    return None
-        
-        elif section == 'memory':
-            # Format varies, common: HH:MM:SS kbmemfree kbavail kbmemused %memused kbbuffers kbcached kbcommit %commit kbactive kbinact kbdirty
-            # Or: HH:MM:SS kbswpfree kbswpused %swpused kbswpcad
-            if len(parts) >= 3:
-                try:
-                    # Store all numeric values as raw data
-                    raw_values = []
-                    for part in parts[1:]:
-                        try:
-                            # Try to convert to float
-                            val = float(part)
-                            raw_values.append(val)
-                        except ValueError:
-                            raw_values.append(part)
                     
-                    data['raw'] = raw_values
+            elif section == 'tty':
+                # Format: HH:MM:SS TTY rcvin/s txmtin/s framerr/s prtyerr/s brk/s ovrun/s
+                if len(parts) >= 8:
+                    data['tty'] = parts[1]
+                    data['rcvin_s'] = float(parts[2])
+                    data['txmtin_s'] = float(parts[3])
+                    data['framerr_s'] = float(parts[4])
+                    data['prtyerr_s'] = float(parts[5])
+                    data['brk_s'] = float(parts[6])
+                    data['ovrun_s'] = float(parts[7])
                     
-                    # Try to identify specific fields if we have enough data
-                    if len(raw_values) >= 3:
-                        # Common pattern: free, available, used
-                        data['kbmemfree'] = raw_values[0] if isinstance(raw_values[0], (int, float)) else 0
-                        if len(raw_values) > 1:
-                            data['kbavail'] = raw_values[1] if isinstance(raw_values[1], (int, float)) else 0
-                        if len(raw_values) > 2:
-                            data['kbmemused'] = raw_values[2] if isinstance(raw_values[2], (int, float)) else 0
-                except (ValueError, IndexError) as e:
-                    Logger.debug(f"Error parsing memory line: {e}")
-                    return None
-        
-        elif section == 'network':
-            # Format: HH:MM:SS IFACE rxpck/s txpck/s rxkB/s txkB/s rxcmp/s txcmp/s rxmcst/s
-            if len(parts) >= 3:
-                try:
-                    data['iface'] = parts[1]
-                    if len(parts) >= 8:
-                        data['rxpck'] = float(parts[2])
-                        data['txpck'] = float(parts[3])
-                        data['rxkB'] = float(parts[4])
-                        data['txkB'] = float(parts[5])
-                except (ValueError, IndexError):
-                    return None
-        
-        elif section == 'disk':
-            # Format: HH:MM:SS DEV tps rd_sec/s wr_sec/s avgrq-sz avgqu-sz await svctm %util
-            if len(parts) >= 3:
-                try:
+            elif section == 'block_device':
+                # Format: HH:MM:SS DEV tps rkB/s wkB/s areq-sz aqu-sz await svctm %util
+                if len(parts) >= 10:
                     data['device'] = parts[1]
-                    if len(parts) >= 10:
-                        data['tps'] = float(parts[2])
-                        data['rd_sec'] = float(parts[3])
-                        data['wr_sec'] = float(parts[4])
-                        data['avgrq_sz'] = float(parts[5])
-                        data['avgqu_sz'] = float(parts[6])
-                        data['await'] = float(parts[7])
-                        data['svctm'] = float(parts[8])
-                        data['util'] = float(parts[9])
-                except (ValueError, IndexError):
-                    return None
+                    data['tps'] = float(parts[2])
+                    data['rkB_s'] = float(parts[3])
+                    data['wkB_s'] = float(parts[4])
+                    data['areq_sz'] = float(parts[5])
+                    data['aqu_sz'] = float(parts[6])
+                    data['await'] = float(parts[7])
+                    data['svctm'] = float(parts[8])
+                    data['util'] = float(parts[9])
+                    
+            elif section == 'network':
+                # Format: HH:MM:SS IFACE rxpck/s txpck/s rxkB/s txkB/s rxcmp/s txcmp/s rxmcst/s %ifutil
+                if len(parts) >= 10:
+                    data['iface'] = parts[1]
+                    data['rxpck_s'] = float(parts[2])
+                    data['txpck_s'] = float(parts[3])
+                    data['rxkB_s'] = float(parts[4])
+                    data['txkB_s'] = float(parts[5])
+                    data['rxcmp_s'] = float(parts[6])
+                    data['txcmp_s'] = float(parts[7])
+                    data['rxmcst_s'] = float(parts[8])
+                    data['ifutil'] = float(parts[9])
+                    
+            elif section == 'network_errors':
+                # Format: HH:MM:SS IFACE rxerr/s txerr/s coll/s rxdrop/s txdrop/s txcarr/s rxfram/s rxfifo/s txfifo/s
+                if len(parts) >= 11:
+                    data['iface'] = parts[1]
+                    data['rxerr_s'] = float(parts[2])
+                    data['txerr_s'] = float(parts[3])
+                    data['coll_s'] = float(parts[4])
+                    data['rxdrop_s'] = float(parts[5])
+                    data['txdrop_s'] = float(parts[6])
+                    data['txcarr_s'] = float(parts[7])
+                    data['rxfram_s'] = float(parts[8])
+                    data['rxfifo_s'] = float(parts[9])
+                    data['txfifo_s'] = float(parts[10])
+                    
+            elif section == 'nfs_client':
+                # Format: HH:MM:SS call/s retrans/s read/s write/s access/s getatt/s
+                if len(parts) >= 7:
+                    data['call_s'] = float(parts[1])
+                    data['retrans_s'] = float(parts[2])
+                    data['read_s'] = float(parts[3])
+                    data['write_s'] = float(parts[4])
+                    data['access_s'] = float(parts[5])
+                    data['getatt_s'] = float(parts[6])
+                    
+            elif section == 'nfs_server':
+                # Format: HH:MM:SS scall/s badcall/s packet/s udp/s tcp/s hit/s miss/s sread/s swrite/s saccess/s sgetatt/s
+                if len(parts) >= 12:
+                    data['scall_s'] = float(parts[1])
+                    data['badcall_s'] = float(parts[2])
+                    data['packet_s'] = float(parts[3])
+                    data['udp_s'] = float(parts[4])
+                    data['tcp_s'] = float(parts[5])
+                    data['hit_s'] = float(parts[6])
+                    data['miss_s'] = float(parts[7])
+                    data['sread_s'] = float(parts[8])
+                    data['swrite_s'] = float(parts[9])
+                    data['saccess_s'] = float(parts[10])
+                    data['sgetatt_s'] = float(parts[11])
+                    
+            elif section == 'sockets':
+                # Format: HH:MM:SS totsck tcpsck udpsck rawsck ip-frag tcp-tw
+                if len(parts) >= 7:
+                    data['totsck'] = int(parts[1])
+                    data['tcpsck'] = int(parts[2])
+                    data['udpsck'] = int(parts[3])
+                    data['rawsck'] = int(parts[4])
+                    data['ip_frag'] = int(parts[5])
+                    data['tcp_tw'] = int(parts[6])
+                    
+            elif section == 'softnet':
+                # Format: HH:MM:SS CPU total/s dropd/s squeezd/s rx_rps/s flw_lim/s
+                if len(parts) >= 7:
+                    data['cpu'] = parts[1] if parts[1] != 'all' else 'all'
+                    data['total_s'] = float(parts[2])
+                    data['dropd_s'] = float(parts[3])
+                    data['squeezd_s'] = float(parts[4])
+                    data['rx_rps_s'] = float(parts[5])
+                    data['flw_lim_s'] = float(parts[6])
+                    
+        except (ValueError, IndexError) as e:
+            Logger.debug(f"Error parsing {section} line: {e}")
+            return None
         
         return data if data else None

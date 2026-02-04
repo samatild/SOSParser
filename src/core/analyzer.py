@@ -411,10 +411,7 @@ class SOSReportAnalyzer:
                 }
 
             Logger.memory("Before prepare_report_data")
-            Logger.debug(f"Processes data before prepare_report_data: {processes}")
-            if processes:
-                Logger.debug(f"process_utilization.available: {processes.get('process_utilization', {}).get('available', 'N/A')}")
-                Logger.debug(f"process_handlers.available: {processes.get('process_handlers', {}).get('available', 'N/A')}")
+                        
             report_data = prepare_report_data(
                 os_info=os_info,
                 hostname=hostname,

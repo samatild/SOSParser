@@ -2720,31 +2720,29 @@
                 <h2>System Activity Reporter (SAR)</h2>
                 
                 <div id="sar-container">
-                    <div class="sar-navigation">
-                        <button id="sar-prev-day" class="sar-nav-button" disabled>← Previous</button>
-                        <select id="sar-day-selector" class="sar-day-selector">
-                            {% for day in sar.available_days %}
-                            <option value="{{ day }}">Day {{ day }}</option>
-                            {% endfor %}
-                        </select>
-                        <button id="sar-next-day" class="sar-nav-button">Next →</button>
+                    <div class="sar-controls">
+                        <div class="sar-navigation">
+                            <button id="sar-prev-day" class="sar-nav-button" disabled>← Previous</button>
+                            <select id="sar-day-selector" class="sar-day-selector">
+                                {% for day in sar.available_days %}
+                                <option value="{{ day }}" data-date="{{ sar.files[day].date_display }}">
+                                    {{ sar.files[day].date_display }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button id="sar-next-day" class="sar-nav-button">Next →</button>
+                        </div>
+                        
+                        <div class="sar-plot-controls">
+                            <label for="sar-plot-selector" class="sar-plot-label">Select Metric:</label>
+                            <select id="sar-plot-selector" class="sar-plot-selector">
+                                <!-- Options populated dynamically by JavaScript -->
+                            </select>
+                        </div>
                     </div>
                     
-                    <div id="sar-graphs-container">
-                        <div class="sar-graph-section">
-                            <h3>CPU Utilization</h3>
-                            <canvas id="sar-cpu-graph" class="sar-graph"></canvas>
-                        </div>
-                        
-                        <div class="sar-graph-section">
-                            <h3>Load Average</h3>
-                            <canvas id="sar-load-graph" class="sar-graph"></canvas>
-                        </div>
-                        
-                        <div class="sar-graph-section">
-                            <h3>Memory Usage</h3>
-                            <canvas id="sar-memory-graph" class="sar-graph"></canvas>
-                        </div>
+                    <div class="sar-graph-container">
+                        <canvas id="sar-graph" class="sar-graph"></canvas>
                     </div>
                 </div>
                 
