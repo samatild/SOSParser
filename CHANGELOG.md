@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Advanced security analysis modules
 - Custom scenario configuration via JSON
 
+## [0.2.20] - 2026-02-04
+
+### Added
+- **Process Information (SOS and SCC)**: New Processes tab with detailed process analysis for both sosreport and supportconfig
+  - **Main tab**: Processes (shown when process utilization or process handlers data is available)
+  - **Subtabs**:
+    - **Process Tree**: Collapsible pstree visualization with Expand All / Collapse All controls
+    - **Process Utilization**: ps snapshots (ps_axwwo, ps_auxwwwm, ps_auxfwww, ps_auxwww, ps_alxwww, ps_elfL)
+    - **Process IO**: Process I/O statistics output
+    - **Process Handlers**: lsof output (open files, network, etc.)
+    - **Process Stats**: pidstat output (pidstat -p ALL, pidstat -tl)
+- **SAR Dynamic Graphs**: New SAR tab (before Logs) when `/var/log/sa` is present with sar files
+  - Parses sar files (not sa binary files) and builds interactive time-series charts
+  - **Navigation**: Day selector dropdown, Previous / Next buttons to move between available days
+  - **Charts**: CPU utilization (total, user, system, I/O wait), Load average (1/5/15 min), Memory usage (free/used)
+  - Implemented with Chart.js; fixed-height canvas to avoid layout growth
+  - Supported for both sosreport and supportconfig (when sar data is collected)
+
+---
+
 ## [0.2.19] - 2026-02-02
 
 ### Fixed
@@ -504,7 +524,10 @@ Future releases will include:
 
 ---
 
-[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.17...HEAD
+[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.20...HEAD
+[0.2.20]: https://github.com/samatild/SOSParser/releases/tag/v0.2.20
+[0.2.19]: https://github.com/samatild/SOSParser/compare/v0.2.19...v0.2.20
+[0.2.18]: https://github.com/samatild/SOSParser/compare/v0.2.18...v0.2.19
 [0.2.17]: https://github.com/samatild/SOSParser/releases/tag/v0.2.17
 [0.2.16]: https://github.com/samatild/SOSParser/compare/v0.2.16...v0.2.17
 [0.2.15]: https://github.com/samatild/SOSParser/compare/v0.2.15...v0.2.16
