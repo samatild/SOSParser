@@ -46,6 +46,67 @@ document.addEventListener('DOMContentLoaded', function() {
             
         });
     });
+    
+    // Process tree toggle functionality
+    const processToggles = document.querySelectorAll('.process-toggle');
+    processToggles.forEach(toggle => {
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const targetId = this.getAttribute('data-target');
+            const targetElement = document.getElementById(targetId);
+            const icon = this.querySelector('.toggle-icon');
+            
+            if (targetElement) {
+                if (targetElement.classList.contains('expanded')) {
+                    targetElement.classList.remove('expanded');
+                    targetElement.classList.add('collapsed');
+                    icon.textContent = '▶';
+                } else {
+                    targetElement.classList.remove('collapsed');
+                    targetElement.classList.add('expanded');
+                    icon.textContent = '▼';
+                }
+            }
+        });
+    });
+    
+    // Expand/Collapse all buttons for process tree
+    const expandAllBtn = document.getElementById('expand-all-processes');
+    const collapseAllBtn = document.getElementById('collapse-all-processes');
+    
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            const processTree = document.querySelector('.process-tree-container');
+            if (processTree) {
+                const children = processTree.querySelectorAll('.process-children');
+                const icons = processTree.querySelectorAll('.toggle-icon');
+                children.forEach(child => {
+                    child.classList.remove('collapsed');
+                    child.classList.add('expanded');
+                });
+                icons.forEach(icon => {
+                    icon.textContent = '▼';
+                });
+            }
+        });
+    }
+    
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            const processTree = document.querySelector('.process-tree-container');
+            if (processTree) {
+                const children = processTree.querySelectorAll('.process-children');
+                const icons = processTree.querySelectorAll('.toggle-icon');
+                children.forEach(child => {
+                    child.classList.remove('expanded');
+                    child.classList.add('collapsed');
+                });
+                icons.forEach(icon => {
+                    icon.textContent = '▶';
+                });
+            }
+        });
+    }
 });
 
 // Toggle scenario details

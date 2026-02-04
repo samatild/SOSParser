@@ -535,8 +535,19 @@
                 {% if processes.process_tree %}
                 <div id="process-tree" class="subtab-content {% if processes.process_tree.available %}active{% endif %}">
                     <h3>Process Tree</h3>
-                    {% if processes.process_tree.raw %}
-                    <pre>{{ processes.process_tree.raw }}</pre>
+                    {% if processes.process_tree.html %}
+                    <div class="process-tree-toggle-view">
+                        <button id="expand-all-processes">Expand All</button>
+                        <button id="collapse-all-processes">Collapse All</button>
+                    </div>
+                    <div class="process-tree-container">
+                        {{ processes.process_tree.html | safe }}
+                    </div>
+                    {% elif processes.process_tree.raw %}
+                    <div class="process-tree-toggle-view">
+                        <button onclick="document.getElementById('raw-process-tree').style.display='block'; this.style.display='none'">Show Raw Text</button>
+                    </div>
+                    <pre id="raw-process-tree" style="display:none;">{{ processes.process_tree.raw }}</pre>
                     {% elif processes.process_tree.note %}
                     <p>{{ processes.process_tree.note }}</p>
                     {% else %}

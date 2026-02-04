@@ -4,6 +4,7 @@
 from pathlib import Path
 from typing import Dict, Any, Optional
 from utils.logger import Logger
+from .pstree_parser import PstreeParser
 
 
 class ProcessAnalyzer:
@@ -41,7 +42,7 @@ class ProcessAnalyzer:
         """Analyze process tree from pstree output"""
         Logger.debug("Analyzing process tree")
         
-        data = {'raw': None, 'available': False}
+        data = {'raw': None, 'html': None, 'available': False}
         
         # Look for pstree files
         pstree_files = list(process_dir.glob('pstree*')) if process_dir.exists() else []
@@ -59,9 +60,22 @@ class ProcessAnalyzer:
             
             if pstree_file:
                 try:
-                    data['raw'] = pstree_file.read_text()
+                    raw_text = pstree_file.read_text()
+                    data['raw'] = raw_text
                     data['available'] = True
                     Logger.debug(f"Found process tree file: {pstree_file.name}")
+                    
+                    # Parse and convert to HTML
+                    try:
+                        parser = PstreeParser()
+                        root_node = parser.parse(raw_text)
+                        if root_node:
+                            data['html'] = parser.to_html(root_node, max_depth=3)
+                            Logger.debug("Successfully parsed process tree to HTML")
+                    except Exception as e:
+                        Logger.warning(f"Failed to parse process tree to HTML: {e}")
+                        # Fall back to raw text if parsing fails
+                    
                 except Exception as e:
                     Logger.warning(f"Failed to read process tree file {pstree_file}: {e}")
         
