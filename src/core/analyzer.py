@@ -17,6 +17,7 @@ from analyzers.network.network import NetworkAnalyzer
 from analyzers.logs.logs import LogAnalyzer
 from analyzers.cloud.cloud import CloudAnalyzer
 from analyzers.updates.updates import UpdatesAnalyzer
+from analyzers.process.process import ProcessAnalyzer
 from analyzers.scenarios.scenario_analyzer import BaseScenarioAnalyzer
 
 # Supportconfig analyzers
@@ -87,6 +88,7 @@ class SOSReportAnalyzer:
         self.log_analyzer = LogAnalyzer()
         self.cloud_analyzer = CloudAnalyzer()
         self.updates_analyzer = UpdatesAnalyzer()
+        self.process_analyzer = ProcessAnalyzer()
         Logger.debug("Analyzers initialized.")
         
         # Initialize scenario analyzers
@@ -337,7 +339,11 @@ class SOSReportAnalyzer:
                 # Analyze updates (DNF/YUM/APT)
                 Logger.debug("Analyzing updates.")
                 updates = self.updates_analyzer.analyze(extracted_dir)
-                    
+                
+                # Analyze processes
+                Logger.debug("Analyzing processes.")
+                processes = self.process_analyzer.analyze(extracted_dir)
+                
             elif format_type == 'supportconfig':
                 Logger.debug("Using Supportconfig analyzers")
                 (summary, system_config, filesystem, network, logs, cloud, updates) = self.analyze_supportconfig(extracted_dir)
@@ -352,6 +358,9 @@ class SOSReportAnalyzer:
                 disk_info = summary['disk_info']
                 system_load = summary['system_load']
                 dmi_info = summary['dmi_info']
+                
+                # Processes not yet implemented for supportconfig
+                processes = {}
 
             # Analyze scenarios (optional, can be disabled)
             Logger.debug("Analyzing scenarios.")
@@ -410,6 +419,7 @@ class SOSReportAnalyzer:
                 enhanced_summary=enhanced_summary,
                 format_type=format_type,
                 updates=updates,
+                processes=processes,
             )
             Logger.memory("After prepare_report_data")
             
