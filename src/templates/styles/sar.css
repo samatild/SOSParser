@@ -1,0 +1,186 @@
+/* SAR (System Activity Reporter) Styles */
+
+#sar-container {
+    padding: 1rem 0;
+}
+
+/* Controls container - holds navigation and plot selector */
+.sar-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+/* Day navigation controls */
+.sar-navigation {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 250px;
+}
+
+.sar-nav-button {
+    padding: 0.5rem 1rem;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.sar-nav-button:hover:not(:disabled) {
+    background: var(--accent-secondary);
+}
+
+.sar-nav-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.sar-day-selector {
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    min-width: 100px;
+}
+
+.sar-day-selector:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+/* Plot type selector controls */
+.sar-plot-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 2;
+    min-width: 300px;
+}
+
+.sar-plot-label {
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.sar-plot-selector {
+    flex: 1;
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    min-width: 200px;
+}
+
+.sar-plot-selector:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.sar-plot-selector optgroup {
+    font-weight: bold;
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.sar-plot-selector option {
+    font-weight: normal;
+    padding: 0.25rem;
+}
+
+.sar-plot-selector option:disabled {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Single graph container */
+.sar-graph-container {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    min-height: 480px;
+}
+
+.sar-graph {
+    position: relative;
+    height: 450px !important;
+    max-height: 450px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block;
+    box-sizing: border-box;
+}
+
+/* No data message */
+.sar-no-data-msg {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 3rem;
+    font-size: 1.1rem;
+}
+
+/* Responsive design */
+@media (max-width: 992px) {
+    .sar-controls {
+        flex-direction: column;
+    }
+    
+    .sar-navigation,
+    .sar-plot-controls {
+        width: 100%;
+        min-width: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .sar-navigation {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .sar-nav-button {
+        width: 100%;
+    }
+    
+    .sar-day-selector {
+        width: 100%;
+    }
+    
+    .sar-plot-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .sar-plot-selector {
+        width: 100%;
+    }
+    
+    .sar-graph-container {
+        padding: 1rem;
+        min-height: 350px;
+    }
+    
+    .sar-graph {
+        height: 300px !important;
+        max-height: 300px !important;
+    }
+}
+

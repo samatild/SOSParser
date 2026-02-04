@@ -457,8 +457,10 @@ class SupportconfigParser:
                 # followed by the output
                 lines = section['content'].split('\n')
                 if lines and lines[0].startswith('#'):
-                    cmd_line = lines[0].strip('# ').strip()
+                    # Remove the leading # and any spaces after it
+                    cmd_line = lines[0].lstrip('#').strip()
                     # Check if this is the command we're looking for
+                    # Match if command appears anywhere in cmd_line or cmd_line ends with command
                     if command in cmd_line or cmd_line.endswith(command):
                         # Return everything after the command line
                         return '\n'.join(lines[1:]).strip()

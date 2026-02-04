@@ -731,3 +731,126 @@ a.eol-badge:hover {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+/* Process Tree Visualization */
+.process-tree-container {
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 1rem;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.process-node {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+  border-radius: 3px;
+  margin-left: calc(var(--depth, 0) * 1.5rem);
+}
+
+.process-node:hover {
+  background-color: var(--bg-hover);
+}
+
+.process-node.process-thread {
+  opacity: 0.75;
+  font-style: italic;
+}
+
+.process-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.5rem;
+  color: var(--accent-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.process-toggle:hover {
+  color: var(--accent-primary);
+}
+
+.process-spacer {
+  display: inline-block;
+  width: 1.25rem;
+  margin-right: 0.5rem;
+}
+
+.process-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.process-pid {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+  margin-left: 0.5rem;
+}
+
+.process-children {
+  margin-left: 1.5rem;
+  border-left: 1px solid var(--border-color);
+  padding-left: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.process-children.collapsed {
+  display: none;
+}
+
+.process-children.expanded {
+  display: block;
+}
+
+.toggle-icon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+  font-size: 0.7rem;
+}
+
+.process-node[data-depth="0"] .process-name {
+  font-weight: 600;
+  color: var(--accent-primary);
+  font-size: 0.875rem;
+}
+
+.process-node[data-depth="1"] .process-name {
+  font-weight: 500;
+}
+
+.process-tree-toggle-view {
+  margin-bottom: 1rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.process-tree-toggle-view button {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.process-tree-toggle-view button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--accent-secondary);
+}

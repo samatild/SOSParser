@@ -7,7 +7,10 @@
     <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/logviewer.css">
+    <link rel="stylesheet" href="styles/sar.css">
     <script src="scripts/logviewer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="scripts/sar.js"></script>
 </head>
 <body>
     <div class="container">
@@ -54,6 +57,11 @@
 
         <nav class="tabs">
             <button class="tab-button active" data-tab="summary">Summary</button>
+            {% if processes %}
+            {% if (processes.process_utilization and processes.process_utilization.available) or (processes.process_handlers and processes.process_handlers.available) %}
+            <button class="tab-button" data-tab="processes">Processes</button>
+            {% endif %}
+            {% endif %}
             <button class="tab-button" data-tab="system-config">System Config</button>
             <button class="tab-button" data-tab="filesystem">Filesystem</button>
             <button class="tab-button" data-tab="network">Network</button>
@@ -64,6 +72,9 @@
             <button class="tab-button" data-tab="updates">Updates</button>
             {% endif %}
             <button class="tab-button" data-tab="crash">Crash</button>
+            {% if sar and sar.available %}
+            <button class="tab-button" data-tab="sar">SAR</button>
+            {% endif %}
             <button class="tab-button" data-tab="logs">Logs</button>
         </nav>
 
@@ -501,6 +512,151 @@
                 </div>
                 {% endif %}
             </section>
+
+            <!-- Processes Tab -->
+            {% if processes %}
+            {% if (processes.process_utilization and processes.process_utilization.available) or (processes.process_handlers and processes.process_handlers.available) %}
+            <section id="processes" class="tab-content">
+                <h2>Processes</h2>
+                
+                <nav class="subtabs">
+                    {% if processes.process_tree and processes.process_tree.available %}
+                    <button class="subtab-button active" data-subtab="process-tree">Process Tree</button>
+                    {% endif %}
+                    {% if processes.process_utilization and processes.process_utilization.available %}
+                    <button class="subtab-button {% if not (processes.process_tree and processes.process_tree.available) %}active{% endif %}" data-subtab="process-utilization">Process Utilization</button>
+                    {% endif %}
+                    {% if processes.process_io and processes.process_io.available %}
+                    <button class="subtab-button {% if not (processes.process_tree and processes.process_tree.available) and not (processes.process_utilization and processes.process_utilization.available) %}active{% endif %}" data-subtab="process-io">Process IO</button>
+                    {% endif %}
+                    {% if processes.process_handlers and processes.process_handlers.available %}
+                    <button class="subtab-button {% if not (processes.process_tree and processes.process_tree.available) and not (processes.process_utilization and processes.process_utilization.available) and not (processes.process_io and processes.process_io.available) %}active{% endif %}" data-subtab="process-handlers">Process Handlers</button>
+                    {% endif %}
+                    {% if processes.process_stats and processes.process_stats.available %}
+                    <button class="subtab-button {% if not (processes.process_tree and processes.process_tree.available) and not (processes.process_utilization and processes.process_utilization.available) and not (processes.process_io and processes.process_io.available) and not (processes.process_handlers and processes.process_handlers.available) %}active{% endif %}" data-subtab="process-stats">Process Stats</button>
+                    {% endif %}
+                </nav>
+
+                <!-- Process Tree Subtab -->
+                {% if processes.process_tree %}
+                <div id="process-tree" class="subtab-content {% if processes.process_tree.available %}active{% endif %}">
+                    <h3>Process Tree</h3>
+                    {% if processes.process_tree.html %}
+                    <div class="process-tree-toggle-view">
+                        <button id="expand-all-processes">Expand All</button>
+                        <button id="collapse-all-processes">Collapse All</button>
+                    </div>
+                    <div class="process-tree-container">
+                        {{ processes.process_tree.html | safe }}
+                    </div>
+                    {% elif processes.process_tree.raw %}
+                    <div class="process-tree-toggle-view">
+                        <button onclick="document.getElementById('raw-process-tree').style.display='block'; this.style.display='none'">Show Raw Text</button>
+                    </div>
+                    <pre id="raw-process-tree" style="display:none;">{{ processes.process_tree.raw }}</pre>
+                    {% elif processes.process_tree.note %}
+                    <p>{{ processes.process_tree.note }}</p>
+                    {% else %}
+                    <p>No process tree data available.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Process Utilization Subtab -->
+                {% if processes.process_utilization and processes.process_utilization.available %}
+                <div id="process-utilization" class="subtab-content {% if not (processes.process_tree and processes.process_tree.available) %}active{% endif %}">
+                    <h3>Process Utilization</h3>
+                    {% if processes.process_utilization.ps_axwwo %}
+                    <h4>ps axwwo</h4>
+                    <pre>{{ processes.process_utilization.ps_axwwo }}</pre>
+                    {% endif %}
+                    {% if processes.process_utilization.ps_auxwwwm %}
+                    <h4>ps auxwwwm (Memory)</h4>
+                    <pre>{{ processes.process_utilization.ps_auxwwwm }}</pre>
+                    {% endif %}
+                    {% if processes.process_utilization.ps_auxfwww %}
+                    <h4>ps auxfwww (Forest)</h4>
+                    <pre>{{ processes.process_utilization.ps_auxfwww }}</pre>
+                    {% endif %}
+                    {% if processes.process_utilization.ps_auxwww %}
+                    <h4>ps auxwww</h4>
+                    <pre>{{ processes.process_utilization.ps_auxwww }}</pre>
+                    {% endif %}
+                    {% if processes.process_utilization.ps_alxwww %}
+                    <h4>ps alxwww</h4>
+                    <pre>{{ processes.process_utilization.ps_alxwww }}</pre>
+                    {% endif %}
+                    {% if processes.process_utilization.ps_elfL %}
+                    <h4>ps -elfL (Threads)</h4>
+                    <pre>{{ processes.process_utilization.ps_elfL }}</pre>
+                    {% endif %}
+                    {% if not processes.process_utilization.ps_axwwo and not processes.process_utilization.ps_auxwwwm and not processes.process_utilization.ps_auxfwww and not processes.process_utilization.ps_auxwww and not processes.process_utilization.ps_alxwww and not processes.process_utilization.ps_elfL %}
+                    <p>No process utilization data available.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Process IO Subtab -->
+                {% if processes.process_io %}
+                <div id="process-io" class="subtab-content {% if not (processes.process_tree and processes.process_tree.available) and not (processes.process_utilization and processes.process_utilization.available) %}active{% endif %}">
+                    <h3>Process IO</h3>
+                    {% if processes.process_io.available and processes.process_io.raw %}
+                    <pre>{{ processes.process_io.raw }}</pre>
+                    {% elif processes.process_io.error %}
+                    <p class="status-warning">iotop command failed or is not available:</p>
+                    <pre>{{ processes.process_io.error }}</pre>
+                    {% elif processes.process_io.note %}
+                    <p>{{ processes.process_io.note }}</p>
+                    {% else %}
+                    <p>No process IO data available.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Process Handlers Subtab -->
+                {% if processes.process_handlers and processes.process_handlers.available %}
+                <div id="process-handlers" class="subtab-content {% if not (processes.process_tree and processes.process_tree.available) and not (processes.process_utilization and processes.process_utilization.available) and not (processes.process_io and processes.process_io.available) %}active{% endif %}">
+                    <h3>Process Handlers (lsof)</h3>
+                    {% if processes.process_handlers.lsof %}
+                    <h4>lsof</h4>
+                    <pre>{{ processes.process_handlers.lsof }}</pre>
+                    {% endif %}
+                    {% if processes.process_handlers.lsof_M_n_l_c %}
+                    <h4>lsof -M -n -l -c (with command)</h4>
+                    <pre>{{ processes.process_handlers.lsof_M_n_l_c }}</pre>
+                    {% endif %}
+                    {% if processes.process_handlers.lsof_M_n_l %}
+                    <h4>lsof -M -n -l</h4>
+                    <pre>{{ processes.process_handlers.lsof_M_n_l }}</pre>
+                    {% endif %}
+                    {% if not processes.process_handlers.lsof and not processes.process_handlers.lsof_M_n_l_c and not processes.process_handlers.lsof_M_n_l %}
+                    <p>No process handlers data available.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Process Stats Subtab -->
+                {% if processes.process_stats %}
+                <div id="process-stats" class="subtab-content {% if processes.process_stats.available and not (processes.process_tree and processes.process_tree.available) and not (processes.process_utilization and processes.process_utilization.available) and not (processes.process_io and processes.process_io.available) and not (processes.process_handlers and processes.process_handlers.available) %}active{% endif %}">
+                    <h3>Process Stats (pidstat)</h3>
+                    {% if processes.process_stats.pidstat_all %}
+                    <h4>pidstat -p ALL (All Processes)</h4>
+                    <pre>{{ processes.process_stats.pidstat_all }}</pre>
+                    {% endif %}
+                    {% if processes.process_stats.pidstat_tl %}
+                    <h4>pidstat -tl (Threads)</h4>
+                    <pre>{{ processes.process_stats.pidstat_tl }}</pre>
+                    {% endif %}
+                    {% if processes.process_stats.note %}
+                    <p>{{ processes.process_stats.note }}</p>
+                    {% elif not processes.process_stats.pidstat_all and not processes.process_stats.pidstat_tl %}
+                    <p>No process stats data available.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </section>
+            {% endif %}
+            {% endif %}
 
             <!-- System Config Tab -->
             <section id="system-config" class="tab-content">
@@ -2555,6 +2711,50 @@
                 </div>
                 {% endif %}
 
+            </section>
+            {% endif %}
+
+            <!-- SAR Tab -->
+            {% if sar and sar.available %}
+            <section id="sar" class="tab-content">
+                <h2>System Activity Reporter (SAR)</h2>
+                
+                <div id="sar-container">
+                    <div class="sar-controls">
+                        <div class="sar-navigation">
+                            <button id="sar-prev-day" class="sar-nav-button" disabled>← Previous</button>
+                            <select id="sar-day-selector" class="sar-day-selector">
+                                {% for day in sar.available_days %}
+                                <option value="{{ day }}" data-date="{{ sar.files[day].date_display }}">
+                                    {{ sar.files[day].date_display }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button id="sar-next-day" class="sar-nav-button">Next →</button>
+                        </div>
+                        
+                        <div class="sar-plot-controls">
+                            <label for="sar-plot-selector" class="sar-plot-label">Select Metric:</label>
+                            <select id="sar-plot-selector" class="sar-plot-selector">
+                                <!-- Options populated dynamically by JavaScript -->
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="sar-graph-container">
+                        <canvas id="sar-graph" class="sar-graph"></canvas>
+                    </div>
+                </div>
+                
+                <script>
+                    // SAR data from template
+                    const sarData = {{ sar | tojson }};
+                    
+                    // Initialize SAR viewer
+                    if (typeof SarViewer !== 'undefined') {
+                        new SarViewer('sar-container', sarData);
+                    }
+                </script>
             </section>
             {% endif %}
 

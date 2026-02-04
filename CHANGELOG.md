@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Advanced security analysis modules
 - Custom scenario configuration via JSON
 
+## [0.2.20] - 2026-02-04
+
+### Added
+- **Process Information (SOS and SCC)**: New Processes tab with detailed process analysis for both sosreport and supportconfig
+  - **Subtabs**: Process Tree (collapsible pstree), Process Utilization (ps snapshots), Process IO, Process Handlers (lsof), Process Stats (pidstat)
+
+- **SAR Dynamic Graphs**: New SAR tab with interactive time-series charts for both sosreport and supportconfig
+  - **Single dynamic graph** with dropdown selector organized by category
+  - **18 metric categories**: CPU Utilization, CPU Per-Core, Process Creation, Softnet, Memory, Swap, Swap Paging, Hugepages, Paging, I/O Transfer, Block Device, Filesystem, Network Interface, Network Errors, Sockets, NFS Client/Server, Load Average, TTY
+  - **CPU Per-Core chart**: Individual utilization line per core with auto-generated colors
+  - **Day navigation**: Dropdown + Previous/Next buttons with actual dates (e.g., "Dec 11, 2025")
+  - **Supportconfig support**: Parses `sar/` directory (both `.xz` compressed and uncompressed files)
+  - Implemented with Chart.js; fixed-height canvas
+
+---
+
 ## [0.2.19] - 2026-02-02
 
 ### Fixed
@@ -504,7 +520,10 @@ Future releases will include:
 
 ---
 
-[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.17...HEAD
+[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.20...HEAD
+[0.2.20]: https://github.com/samatild/SOSParser/releases/tag/v0.2.20
+[0.2.19]: https://github.com/samatild/SOSParser/compare/v0.2.19...v0.2.20
+[0.2.18]: https://github.com/samatild/SOSParser/compare/v0.2.18...v0.2.19
 [0.2.17]: https://github.com/samatild/SOSParser/releases/tag/v0.2.17
 [0.2.16]: https://github.com/samatild/SOSParser/compare/v0.2.16...v0.2.17
 [0.2.15]: https://github.com/samatild/SOSParser/compare/v0.2.15...v0.2.16
