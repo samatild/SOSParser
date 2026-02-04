@@ -55,7 +55,9 @@
         <nav class="tabs">
             <button class="tab-button active" data-tab="summary">Summary</button>
             {% if processes %}
+            {% if (processes.process_utilization and processes.process_utilization.available) or (processes.process_handlers and processes.process_handlers.available) %}
             <button class="tab-button" data-tab="processes">Processes</button>
+            {% endif %}
             {% endif %}
             <button class="tab-button" data-tab="system-config">System Config</button>
             <button class="tab-button" data-tab="filesystem">Filesystem</button>
@@ -507,6 +509,7 @@
 
             <!-- Processes Tab -->
             {% if processes %}
+            {% if (processes.process_utilization and processes.process_utilization.available) or (processes.process_handlers and processes.process_handlers.available) %}
             <section id="processes" class="tab-content">
                 <h2>Processes</h2>
                 
@@ -529,11 +532,13 @@
                 </nav>
 
                 <!-- Process Tree Subtab -->
-                {% if processes.process_tree and processes.process_tree.available %}
-                <div id="process-tree" class="subtab-content active">
+                {% if processes.process_tree %}
+                <div id="process-tree" class="subtab-content {% if processes.process_tree.available %}active{% endif %}">
                     <h3>Process Tree</h3>
                     {% if processes.process_tree.raw %}
                     <pre>{{ processes.process_tree.raw }}</pre>
+                    {% elif processes.process_tree.note %}
+                    <p>{{ processes.process_tree.note }}</p>
                     {% else %}
                     <p>No process tree data available.</p>
                     {% endif %}
@@ -544,6 +549,10 @@
                 {% if processes.process_utilization and processes.process_utilization.available %}
                 <div id="process-utilization" class="subtab-content {% if not (processes.process_tree and processes.process_tree.available) %}active{% endif %}">
                     <h3>Process Utilization</h3>
+                    {% if processes.process_utilization.ps_axwwo %}
+                    <h4>ps axwwo</h4>
+                    <pre>{{ processes.process_utilization.ps_axwwo }}</pre>
+                    {% endif %}
                     {% if processes.process_utilization.ps_auxwwwm %}
                     <h4>ps auxwwwm (Memory)</h4>
                     <pre>{{ processes.process_utilization.ps_auxwwwm }}</pre>
@@ -564,7 +573,7 @@
                     <h4>ps -elfL (Threads)</h4>
                     <pre>{{ processes.process_utilization.ps_elfL }}</pre>
                     {% endif %}
-                    {% if not processes.process_utilization.ps_auxwwwm and not processes.process_utilization.ps_auxfwww and not processes.process_utilization.ps_auxwww and not processes.process_utilization.ps_alxwww and not processes.process_utilization.ps_elfL %}
+                    {% if not processes.process_utilization.ps_axwwo and not processes.process_utilization.ps_auxwwwm and not processes.process_utilization.ps_auxfwww and not processes.process_utilization.ps_auxwww and not processes.process_utilization.ps_alxwww and not processes.process_utilization.ps_elfL %}
                     <p>No process utilization data available.</p>
                     {% endif %}
                 </div>
@@ -579,6 +588,8 @@
                     {% elif processes.process_io.error %}
                     <p class="status-warning">iotop command failed or is not available:</p>
                     <pre>{{ processes.process_io.error }}</pre>
+                    {% elif processes.process_io.note %}
+                    <p>{{ processes.process_io.note }}</p>
                     {% else %}
                     <p>No process IO data available.</p>
                     {% endif %}
@@ -589,6 +600,10 @@
                 {% if processes.process_handlers and processes.process_handlers.available %}
                 <div id="process-handlers" class="subtab-content {% if not (processes.process_tree and processes.process_tree.available) and not (processes.process_utilization and processes.process_utilization.available) and not (processes.process_io and processes.process_io.available) %}active{% endif %}">
                     <h3>Process Handlers (lsof)</h3>
+                    {% if processes.process_handlers.lsof %}
+                    <h4>lsof</h4>
+                    <pre>{{ processes.process_handlers.lsof }}</pre>
+                    {% endif %}
                     {% if processes.process_handlers.lsof_M_n_l_c %}
                     <h4>lsof -M -n -l -c (with command)</h4>
                     <pre>{{ processes.process_handlers.lsof_M_n_l_c }}</pre>
@@ -597,15 +612,15 @@
                     <h4>lsof -M -n -l</h4>
                     <pre>{{ processes.process_handlers.lsof_M_n_l }}</pre>
                     {% endif %}
-                    {% if not processes.process_handlers.lsof_M_n_l_c and not processes.process_handlers.lsof_M_n_l %}
+                    {% if not processes.process_handlers.lsof and not processes.process_handlers.lsof_M_n_l_c and not processes.process_handlers.lsof_M_n_l %}
                     <p>No process handlers data available.</p>
                     {% endif %}
                 </div>
                 {% endif %}
 
                 <!-- Process Stats Subtab -->
-                {% if processes.process_stats and processes.process_stats.available %}
-                <div id="process-stats" class="subtab-content {% if not (processes.process_tree and processes.process_tree.available) and not (processes.process_utilization and processes.process_utilization.available) and not (processes.process_io and processes.process_io.available) and not (processes.process_handlers and processes.process_handlers.available) %}active{% endif %}">
+                {% if processes.process_stats %}
+                <div id="process-stats" class="subtab-content {% if processes.process_stats.available and not (processes.process_tree and processes.process_tree.available) and not (processes.process_utilization and processes.process_utilization.available) and not (processes.process_io and processes.process_io.available) and not (processes.process_handlers and processes.process_handlers.available) %}active{% endif %}">
                     <h3>Process Stats (pidstat)</h3>
                     {% if processes.process_stats.pidstat_all %}
                     <h4>pidstat -p ALL (All Processes)</h4>
@@ -615,12 +630,15 @@
                     <h4>pidstat -tl (Threads)</h4>
                     <pre>{{ processes.process_stats.pidstat_tl }}</pre>
                     {% endif %}
-                    {% if not processes.process_stats.pidstat_all and not processes.process_stats.pidstat_tl %}
+                    {% if processes.process_stats.note %}
+                    <p>{{ processes.process_stats.note }}</p>
+                    {% elif not processes.process_stats.pidstat_all and not processes.process_stats.pidstat_tl %}
                     <p>No process stats data available.</p>
                     {% endif %}
                 </div>
                 {% endif %}
             </section>
+            {% endif %}
             {% endif %}
 
             <!-- System Config Tab -->

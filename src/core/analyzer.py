@@ -28,6 +28,7 @@ from analyzers.supportconfig.filesystem import SupportconfigFilesystem
 from analyzers.supportconfig.cloud import SupportconfigCloud
 from analyzers.supportconfig.logs import SupportconfigLogs
 from analyzers.supportconfig.updates import SupportconfigUpdates
+from analyzers.supportconfig.process import SupportconfigProcess
 from analyzers.supportconfig.parser import SupportconfigParser
 
 from reporting.report_generator import (
@@ -140,6 +141,7 @@ class SOSReportAnalyzer:
         # Initialize updates analyzer with parser
         parser = SupportconfigParser(extracted_dir)
         updates_analyzer = SupportconfigUpdates(parser)
+        process_analyzer = SupportconfigProcess(extracted_dir)
         Logger.memory("Analyzers initialized")
         
         # Get complete summary data using dedicated summary analyzer
@@ -201,11 +203,16 @@ class SOSReportAnalyzer:
         updates = updates_analyzer.analyze()
         Logger.memory("Updates analysis complete")
         
+        # Analyze processes
+        Logger.debug("Analyzing processes (supportconfig)")
+        processes = process_analyzer.analyze()
+        Logger.memory("Processes analysis complete")
+        
         # Construct enhanced summary for supportconfig
         # Summary is already populated by the summary analyzer
         Logger.memory("SCC analysis finished - returning results")
 
-        return (summary, system_config, filesystem, network, logs, cloud, updates)
+        return (summary, system_config, filesystem, network, logs, cloud, updates, processes)
     
     def generate_report(self):
         """Generate the analysis report"""
@@ -346,7 +353,7 @@ class SOSReportAnalyzer:
                 
             elif format_type == 'supportconfig':
                 Logger.debug("Using Supportconfig analyzers")
-                (summary, system_config, filesystem, network, logs, cloud, updates) = self.analyze_supportconfig(extracted_dir)
+                (summary, system_config, filesystem, network, logs, cloud, updates, processes) = self.analyze_supportconfig(extracted_dir)
 
                 # Extract individual fields from summary for compatibility
                 hostname = summary['hostname']
@@ -358,9 +365,6 @@ class SOSReportAnalyzer:
                 disk_info = summary['disk_info']
                 system_load = summary['system_load']
                 dmi_info = summary['dmi_info']
-                
-                # Processes not yet implemented for supportconfig
-                processes = {}
 
             # Analyze scenarios (optional, can be disabled)
             Logger.debug("Analyzing scenarios.")
@@ -395,6 +399,10 @@ class SOSReportAnalyzer:
                 }
 
             Logger.memory("Before prepare_report_data")
+            Logger.debug(f"Processes data before prepare_report_data: {processes}")
+            if processes:
+                Logger.debug(f"process_utilization.available: {processes.get('process_utilization', {}).get('available', 'N/A')}")
+                Logger.debug(f"process_handlers.available: {processes.get('process_handlers', {}).get('available', 'N/A')}")
             report_data = prepare_report_data(
                 os_info=os_info,
                 hostname=hostname,
