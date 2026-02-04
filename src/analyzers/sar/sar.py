@@ -86,7 +86,7 @@ class SarAnalyzer:
         - SOSReport: /var/log/sa/sar* (uncompressed, day number in filename)
         - Supportconfig: /sar/sar* (compressed .xz or uncompressed, full date in filename)
         """
-        Logger.debug("Analyzing SAR data")
+        Logger.info("Analyzing SAR data")
         
         # Detect format and find SAR files
         format_type, sar_files = self._find_sar_files(base_path)
