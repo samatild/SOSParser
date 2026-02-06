@@ -40,7 +40,8 @@ from utils.logger import Logger
 from utils.file_operations import (
     validate_tarball,
     extract_tarball,
-    get_sosreport_timestamp
+    get_sosreport_timestamp,
+    get_diagnostic_date_from_content
 )
 from utils.output_manager import setup_output_directory
 from utils.format_detector import detect_format, get_format_info
@@ -245,14 +246,16 @@ class SOSReportAnalyzer:
             if format_type == 'unknown':
                 raise ValueError(f"Unknown or unsupported diagnostic file format at {extracted_dir}")
             
-            # Get diagnostic timestamp
-            Logger.debug("Getting diagnostic timestamp.")
-            if format_type == 'sosreport':
-                diagnostic_timestamp = get_sosreport_timestamp(self.tarball_path)
-            else:
-                # For supportconfig, use current time or extract from file
-                from datetime import datetime
-                diagnostic_timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            # Get diagnostic timestamp from actual content (when sosreport/scc was collected)
+            Logger.debug("Getting diagnostic timestamp from content.")
+            diagnostic_timestamp = get_diagnostic_date_from_content(extracted_dir, format_type)
+            if diagnostic_timestamp == "Unknown":
+                # Fallback to filename-based timestamp for sosreport
+                if format_type == 'sosreport':
+                    diagnostic_timestamp = get_sosreport_timestamp(self.tarball_path)
+                else:
+                    from datetime import datetime
+                    diagnostic_timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             Logger.debug(f"Diagnostic timestamp: {diagnostic_timestamp}")
             
             # Route to appropriate analyzer based on format

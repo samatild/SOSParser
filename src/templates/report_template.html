@@ -41,8 +41,8 @@
                                  data-os-id="{{ summary.os_info.ID | default('') }}"
                                  data-version-id="{{ summary.os_info.VERSION_ID | default('') }}"></div>
                             <div class="info-item">
-                                <span class="label">Report Generated:</span>
-                                <span class="value">{{ execution_timestamp }} UTC</span>
+                                <span class="label">Diagnostic Date:</span>
+                                <span class="value">{{ diagnostic_timestamp }}</span>
                             </div>
                         </div>
                     </div>
@@ -226,11 +226,11 @@
                         <h3>Report Metadata</h3>
                         <table class="info-table">
                             <tr>
-                                <td class="label">Diagnostic Created</td>
+                                <td class="label">Data Collected</td>
                                 <td class="value">{{ diagnostic_timestamp }}</td>
                             </tr>
                             <tr>
-                                <td class="label">Analysis Date</td>
+                                <td class="label">Report Generated</td>
                                 <td class="value">{{ execution_timestamp }} UTC</td>
                             </tr>
                             {% if summary.disk_info.disks %}
