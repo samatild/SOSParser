@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Advanced security analysis modules
 - Custom scenario configuration via JSON
 
+## [0.2.21] - 2026-02-06
+
+### Fixed
+- **Diagnostic Date Display**: Fixed incorrect date display in report header and metadata
+  - Header now shows "Diagnostic Date" with the actual date when sosreport/supportconfig was collected
+  - Report Metadata section now shows both "Data Collected" (when diagnostic was taken) and "Report Generated" (when HTML report was created)
+  - For sosreport: Parses `sos_logs/ui.log` for the collection timestamp
+  - For supportconfig: Parses `basic-environment.txt` `/bin/date` command output
+
+---
+
 ## [0.2.20] - 2026-02-04
 
 ### Added
@@ -520,8 +531,9 @@ Future releases will include:
 
 ---
 
-[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.20...HEAD
-[0.2.20]: https://github.com/samatild/SOSParser/releases/tag/v0.2.20
+[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.21...HEAD
+[0.2.21]: https://github.com/samatild/SOSParser/releases/tag/v0.2.21
+[0.2.20]: https://github.com/samatild/SOSParser/compare/v0.2.20...v0.2.21
 [0.2.19]: https://github.com/samatild/SOSParser/compare/v0.2.19...v0.2.20
 [0.2.18]: https://github.com/samatild/SOSParser/compare/v0.2.18...v0.2.19
 [0.2.17]: https://github.com/samatild/SOSParser/releases/tag/v0.2.17
