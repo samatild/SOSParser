@@ -29,6 +29,9 @@ services:
       - WEBAPP_PORT=8000
       - WEBAPP_MAX_CONTENT_MB=2048
       - FLASK_ENV=production
+      # Public mode: Set to "true" to enable audit logging and disable report persistence
+      # When enabled, comprehensive audit logs are written to stdout for monitoring
+      - PUBLIC_MODE=false
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
