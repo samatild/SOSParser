@@ -59,8 +59,32 @@ In Public Mode:
 - The "Saved Reports" browser is hidden from the UI
 - No uploaded files or generated reports are persisted
 - Output directory is cleaned on container startup
+- **Comprehensive audit logging** is automatically enabled (see below)
 
 This is ideal for demo instances or public services where privacy is a concern.
+
+#### Audit Logging (Public Mode)
+
+When running in Public Mode, SOSParser automatically enables comprehensive **audit logging** to monitor and track all user activities. Audit logs are written to stdout in JSON format and can be easily collected by container logging solutions.
+
+**What is logged:**
+- All page access (HTTP requests with IP, User-Agent, method, status)
+- File upload events (direct and chunked uploads)
+- Report generation (start, completion, failures)
+- Report viewing events
+
+**Quick start with audit logging:**
+
+```bash
+# Using docker-compose with public mode
+docker-compose -f docker-compose.public.yml up -d
+
+# View audit logs in real-time
+docker-compose -f docker-compose.public.yml logs -f sosparser-public | grep "AUDIT"
+
+# Export audit logs to a file
+docker-compose logs sosparser | grep "AUDIT" > audit.log
+```
 
 #### Private Mode (Default)
 

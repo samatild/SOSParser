@@ -28,6 +28,9 @@ from flask import (
 from werkzeug.utils import secure_filename
 import shutil
 
+# Import audit logger (use relative import for proper package structure)
+from webapp.audit_logger import AuditLogger
+
 # Cleanup stale uploads after 1 hour
 UPLOAD_SESSION_TTL = 3600
 
@@ -244,6 +247,14 @@ def create_app() -> Flask:
     # Debug mode: enables memory tracking and verbose logging
     debug_mode = os.environ.get("WEBAPP_DEBUG", "false").lower() in ("true", "1", "yes")
     app.config["DEBUG_MODE"] = debug_mode
+    
+    # Initialize audit logger (active in public mode only)
+    audit_logger = AuditLogger(enabled=public_mode)
+    app.config["AUDIT_LOGGER"] = audit_logger
+    
+    if public_mode:
+        print("[INFO] Running in PUBLIC_MODE - audit logging enabled")
+    
     base_dir = Path(__file__).parent
     uploads_dir = base_dir / "uploads"
     outputs_dir = base_dir / "outputs"
@@ -277,6 +288,47 @@ def create_app() -> Flask:
     # In public mode, also cleanup outputs/ on startup (no persistence)
     if public_mode:
         _cleanup_dir_contents(outputs_dir)
+
+    # Helper function to get client IP address
+    def _get_client_ip() -> str:
+        """Get client IP address, accounting for proxies."""
+        # Check X-Forwarded-For header (for proxies/load balancers)
+        if request.headers.get('X-Forwarded-For'):
+            return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+        # Check X-Real-IP header
+        if request.headers.get('X-Real-IP'):
+            return request.headers.get('X-Real-IP')
+        # Fall back to remote_addr
+        return request.remote_addr or 'unknown'
+    
+    # Audit logging hooks
+    @app.before_request
+    def log_request():
+        """Log all requests in public mode."""
+        if audit_logger.enabled:
+            # Store request start time for duration calculation
+            request.start_time = time.time()
+            # Skip logging for static assets and health checks
+            if request.path.startswith('/report-assets/') or request.path == '/healthz':
+                return
+            # Log will be completed in after_request with status code
+    
+    @app.after_request
+    def log_response(response):
+        """Log response details in public mode."""
+        if audit_logger.enabled and hasattr(request, 'start_time'):
+            # Skip logging for static assets and health checks
+            if request.path.startswith('/report-assets/') or request.path == '/healthz':
+                return response
+            
+            audit_logger.log_page_access(
+                path=request.path,
+                method=request.method,
+                ip_address=_get_client_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                status_code=response.status_code
+            )
+        return response
 
     @app.get("/")
     def index():
@@ -313,6 +365,18 @@ def create_app() -> Flask:
         tarball_filename = secure_filename(tarball_file.filename)
         tarball_path = upload_token_dir / tarball_filename
         tarball_file.save(str(tarball_path))
+        
+        # Audit log: report generation started
+        if audit_logger.enabled:
+            file_size = tarball_path.stat().st_size
+            audit_logger.log_report_generation_started(
+                token=token,
+                filename=tarball_filename,
+                file_size=file_size,
+                ip_address=_get_client_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                upload_method='direct'
+            )
 
         # Run the analyzer
         try:
@@ -322,7 +386,25 @@ def create_app() -> Flask:
                 save_next_to_tarball=False,
                 output_dir_override=str(output_token_dir),
             )
+            
+            # Audit log: report generation completed successfully
+            if audit_logger.enabled:
+                audit_logger.log_report_generation_completed(
+                    token=token,
+                    success=True,
+                    ip_address=_get_client_ip(),
+                    user_agent=request.headers.get('User-Agent', 'unknown')
+                )
         except Exception as e:
+            # Audit log: report generation failed
+            if audit_logger.enabled:
+                audit_logger.log_report_generation_completed(
+                    token=token,
+                    success=False,
+                    ip_address=_get_client_ip(),
+                    user_agent=request.headers.get('User-Agent', 'unknown'),
+                    error_message=str(e)
+                )
             flash(f"Analysis failed: {e}", "error")
             return redirect(url_for("index"))
 
@@ -413,6 +495,17 @@ def create_app() -> Flask:
         if not _write_session(uploads_dir, upload_id, session):
             _remove_dir(temp_dir)
             return jsonify({"error": "Failed to create upload session"}), 500
+        
+        # Audit log: chunked upload initiated
+        if audit_logger.enabled:
+            audit_logger.log_upload_chunk_initiated(
+                upload_id=upload_id,
+                filename=filename,
+                file_size=file_size,
+                total_chunks=total_chunks,
+                ip_address=_get_client_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown')
+            )
         
         return jsonify({
             "uploadId": upload_id,
@@ -540,6 +633,10 @@ def create_app() -> Flask:
                     "completed_at": time.time(),
                 })
                 
+                # Audit log: report generation completed successfully
+                # Note: This runs in background thread, so we can't get request context
+                # Main audit logging for completion happens in the analyze() and upload_complete() routes
+                
             finally:
                 sys.stdout.flush()
                 sys.stderr.flush()
@@ -623,6 +720,18 @@ def create_app() -> Flask:
         finally:
             # Clean up temp chunks directory
             _remove_dir(temp_dir)
+        
+        # Audit log: report generation started (chunked upload)
+        if audit_logger.enabled:
+            file_size = tarball_path.stat().st_size
+            audit_logger.log_report_generation_started(
+                token=token,
+                filename=filename,
+                file_size=file_size,
+                ip_address=_get_client_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown'),
+                upload_method='chunked'
+            )
         
         # Start analysis in background thread
         analysis_thread = threading.Thread(
@@ -825,8 +934,15 @@ def create_app() -> Flask:
         html = html.replace("href=\"styles/", "href=\"/report-assets/styles/")
         html = html.replace("src=\"scripts/", "src=\"/report-assets/scripts/")
         html = html.replace("src=\"images/", "src=\"/report-assets/images/")
-        html = html.replace("href=\"images/", "href=\"/report-assets/images/")
-
+        html = html.replace("href=\"images/", "href=\"/report-assets/images/")        
+        # Audit log: report viewed
+        if audit_logger.enabled:
+            audit_logger.log_report_viewed(
+                token=token,
+                report_path=rel_path,
+                ip_address=_get_client_ip(),
+                user_agent=request.headers.get('User-Agent', 'unknown')
+            )
         # Cleanup uploads after response
         # In public mode, also cleanup outputs (no persistence)
         uploads_token_dir = Path(app.config["UPLOAD_FOLDER"]) / secure_filename(token)

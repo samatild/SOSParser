@@ -1,8 +1,8 @@
-## [0.2.21] - 2026-02-06
+## [0.2.22] - 2026-02-09
 
-### Fixed
-- **Diagnostic Date Display**: Fixed incorrect date display in report header and metadata
-  - Header now shows "Diagnostic Date" with the actual date when sosreport/supportconfig was collected
-  - Report Metadata section now shows both "Data Collected" (when diagnostic was taken) and "Report Generated" (when HTML report was created)
-  - For sosreport: Parses `sos_logs/ui.log` for the collection timestamp
-  - For supportconfig: Parses `basic-environment.txt` `/bin/date` command output
+### Added
+- **Audit Logging for Public Mode**: Comprehensive security and usage monitoring
+  - Automatically enabled when `PUBLIC_MODE=true`
+  - Logs all page access, file uploads, report generation, and report viewing
+  - Structured JSON format to stdout for easy integration
+  - Client IP, user agent, timestamps, and event details captured

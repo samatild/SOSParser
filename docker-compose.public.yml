@@ -1,0 +1,71 @@
+version: '3.8'
+
+# Docker Compose configuration for PUBLIC MODE deployment
+# This configuration enables audit logging and disables report persistence
+# Suitable for public-facing deployments where security monitoring is required
+
+services:
+  sosparser-public:
+    build: .
+    container_name: sosparser-public
+    ports:
+      - "8000:8000"
+    # Gunicorn config:
+    #   --timeout 1800: Allow up to 30 min for large file extraction + analysis
+    #   --graceful-timeout 1800: Grace period before force kill
+    #   --keep-alive 75: Keep connections alive longer for chunked uploads
+    #   --workers 2: Handle concurrent uploads (adjust based on CPU cores)
+    #   --access-logfile -: Log access to stdout (for container log aggregation)
+    #   --error-logfile -: Log errors to stderr (for container log aggregation)
+    command: >
+      gunicorn
+      --bind 0.0.0.0:8000
+      --timeout 1800
+      --graceful-timeout 1800
+      --keep-alive 75
+      --workers 2
+      --worker-class sync
+      --access-logfile -
+      --error-logfile -
+      --capture-output
+      webapp.wsgi:application
+    # In public mode, volumes are optional since data is not persisted
+    # You may still want to mount volumes for temporary storage performance
+    # volumes:
+    #   - /tmp/sosparser/uploads:/app/webapp/uploads
+    #   - /tmp/sosparser/outputs:/app/webapp/outputs
+    environment:
+      - WEBAPP_HOST=0.0.0.0
+      - WEBAPP_PORT=8000
+      - WEBAPP_MAX_CONTENT_MB=2048
+      - FLASK_ENV=production
+      # PUBLIC MODE ENABLED - Audit logging active, no report persistence
+      - PUBLIC_MODE=true
+      # Optional: Enable debug mode for additional logging
+      # - WEBAPP_DEBUG=false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    # Logging configuration for capturing audit logs
+    # These logs will include all audit events in JSON format    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        # For production, consider using a logging driver like:        # driver: "syslog"
+        # options:
+        #   syslog-address: "udp://your-log-server:514"
+        #   tag: "sosparser-audit"
+        # OR use Docker's built-in forwarding to cloud logging services
+        # driver: "awslogs"  # For AWS CloudWatch
+        # driver: "gcplogs"  # For Google Cloud Logging
+        # driver: "fluentd"  # For Fluentd log aggregation
+
+# Example: Viewing audit logs
+# To view live audit logs: docker-compose -f docker-compose.public.yml logs -f sosparser-public
+# To filter for audit events: docker-compose -f docker-compose.public.yml logs sosparser-public | grep "AUDIT"
+# To export logs: docker-compose -f docker-compose.public.yml logs sosparser-public > audit.log
