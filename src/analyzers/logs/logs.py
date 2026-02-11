@@ -24,7 +24,7 @@ class LogAnalyzer:
     """Analyze system logs from sosreport"""
     
     def analyze_system_logs(self, base_path: Path) -> dict:
-        """Analyze system logs (messages, syslog)"""
+        """Analyze system logs (messages, syslog, or journalctl as fallback)"""
         Logger.debug("Analyzing system logs")
         
         data = {}
@@ -60,6 +60,15 @@ class LogAnalyzer:
         boot_log = log_dir / 'boot.log'
         if boot_log.exists():
             data['boot_log'] = self._tail_file(boot_log, SECONDARY_LOG_LINES)
+        
+        # CRITICAL: If no traditional logs found (Debian/Ubuntu case), use journalctl as fallback
+        has_traditional_logs = bool(messages_content or syslog_content)
+        if not has_traditional_logs:
+            Logger.info("No traditional logs found, using journalctl as primary system log source")
+            journalctl_data = self.analyze_journalctl_logs(base_path)
+            if journalctl_data:
+                data['journalctl'] = journalctl_data
+                data['using_journalctl_fallback'] = True
         
         return data
     
@@ -221,13 +230,107 @@ class LogAnalyzer:
         
         return data
     
+    def analyze_journalctl_logs(self, base_path: Path) -> dict:
+        """
+        Discover and analyze all journalctl logs from sos_commands/logs/.
+        This is critical for Debian-based systems that don't have /var/log/messages or /var/log/syslog.
+        """
+        Logger.debug("Analyzing journalctl logs")
+        
+        data = {}
+        
+        # Check common locations for journalctl outputs
+        logs_dirs = [
+            base_path / 'sos_commands' / 'logs',
+            base_path / 'sos_commands' / 'systemd',
+        ]
+        
+        journalctl_files = {}
+        
+        for logs_dir in logs_dirs:
+            if not logs_dir.exists():
+                continue
+            
+            # Find all journalctl files
+            for file_path in logs_dir.iterdir():
+                if file_path.is_file() and file_path.name.startswith('journalctl'):
+                    # Parse the journalctl file name to determine its type
+                    filename = file_path.name
+                    
+                    # Skip disk-usage as it's not a log file
+                    if 'disk-usage' in filename or 'disk_usage' in filename:
+                        continue
+                    
+                    # Skip list-boots as it's shown in Boot & GRUB section
+                    if 'list-boots' in filename or 'list_boots' in filename:
+                        continue
+                    
+                    # Categorize by filename
+                    if filename not in journalctl_files:
+                        journalctl_files[filename] = file_path
+        
+        # Sort files for consistent ordering (current boot first, then previous boots)
+        sorted_files = sorted(journalctl_files.items(), key=lambda x: (
+            '_-1' in x[0],  # Previous boot last
+            '_-2' in x[0],  # Older boots even later
+            x[0]  # Alphabetical within same priority
+        ))
+        
+        # Process each journalctl file
+        for filename, file_path in sorted_files:
+            try:
+                content = self._tail_file(file_path, PRIMARY_LOG_LINES)
+                if content and content.strip():
+                    # Create a friendly key
+                    key = filename.replace('journalctl_', '').replace('--', '').replace('_', ' ').strip()
+                    if not key:
+                        key = 'default'
+                    
+                    # Clean up the key for better display
+                    key = key.replace('no-pager', '').strip()
+                    if key.startswith('boot'):
+                        if '-1' in key:
+                            key = 'previous_boot'
+                        elif '-2' in key:
+                            key = 'boot_minus_2'
+                        else:
+                            key = 'current_boot'
+                    elif not key:
+                        key = 'full_journal'
+                    
+                    data[key] = {
+                        'content': content,
+                        'filename': filename,
+                        'description': self._get_journalctl_description(filename)
+                    }
+            except Exception as e:
+                Logger.warning(f"Failed to read journalctl file {filename}: {e}")
+        
+        return data
+    
+    def _get_journalctl_description(self, filename: str) -> str:
+        """Generate a human-readable description for a journalctl file."""
+        if '--list-boots' in filename or 'list_boots' in filename or 'list-boots' in filename:
+            return "Boot History (List Boots)"
+        elif '--boot' in filename:
+            if '_-1' in filename:
+                return "Journal from previous boot"
+            elif '_-2' in filename:
+                return "Journal from 2 boots ago"
+            else:
+                return "Journal from current boot"
+        elif '--no-pager' in filename and '--boot' not in filename:
+            return "Complete system journal"
+        else:
+            return "System journal"
+    
     def analyze_service_logs(self, base_path: Path) -> dict:
         """Analyze service-specific logs"""
         Logger.debug("Analyzing service logs")
         
         data = {}
         
-        # Journal log - primary importance
+        # Journal log - primary importance (kept for backwards compatibility)
         journal = base_path / 'sos_commands' / 'logs' / 'journalctl_--no-pager'
         if not journal.exists():
             journal = base_path / 'sos_commands' / 'systemd' / 'journalctl_--no-pager_--boot'

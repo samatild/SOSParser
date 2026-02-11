@@ -156,6 +156,19 @@ class SystemConfigAnalyzer:
             entries = list(loader_entries.glob('*.conf'))
             data['loader_entries'] = [e.name for e in entries]
         
+        # Boot history from journalctl --list-boots
+        list_boots_locations = [
+            base_path / 'sos_commands' / 'systemd' / 'journalctl_--list-boots',
+            base_path / 'sos_commands' / 'logs' / 'journalctl_--list-boots',
+        ]
+        for list_boots_file in list_boots_locations:
+            if list_boots_file.exists():
+                try:
+                    data['list_boots'] = list_boots_file.read_text().strip()
+                    break
+                except Exception as e:
+                    Logger.warning(f"Failed to read list-boots: {e}")
+        
         return data
     
     def analyze_authentication(self, base_path: Path) -> dict:
