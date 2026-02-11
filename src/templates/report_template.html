@@ -780,6 +780,10 @@
                         {% endfor %}
                         </ul>
                         {% endif %}
+                        {% if system_config.boot.list_boots %}
+                        <h4>Boot History (List Boots)</h4>
+                        <pre>{{ system_config.boot.list_boots }}</pre>
+                        {% endif %}
                         {% if system_config.boot.grub_cfg %}
                         <h4>GRUB Configuration (first 5000 chars)</h4>
                         <pre>{{ system_config.boot.grub_cfg }}</pre>
@@ -2834,6 +2838,29 @@
                         <script>
                             new LogViewer('log-boot', {{ logs.system.boot_log | tojson }});
                         </script>
+                        {% endif %}
+                        
+                        {% if logs.system.journalctl %}
+                        <!-- Journalctl logs (fallback for Debian/Ubuntu systems without traditional logs) -->
+                        {% if logs.system.using_journalctl_fallback %}
+                        <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 4px; margin-bottom: 1rem; border-left: 3px solid var(--accent-primary);">
+                            <strong>ℹ️ Note:</strong> Traditional log files (/var/log/messages, /var/log/syslog) not found. 
+                            Using journalctl logs as primary system log source (common for Debian-based systems).
+                        </div>
+                        {% endif %}
+                        
+                        {% for key, journal_data in logs.system.journalctl.items() %}
+                        <details style="margin-bottom: 1rem; background: var(--bg-tertiary); border-radius: 4px; padding: 0.5rem;">
+                            <summary style="cursor: pointer; font-weight: 500;">
+                                <span style="font-size: 1.1em;">📋 {{ journal_data.description }}</span>
+                                <span style="font-size: 0.85em; color: var(--text-secondary); margin-left: 0.5rem;">({{ journal_data.filename }})</span>
+                            </summary>
+                            <div id="log-journalctl-{{ key }}" class="log-container" style="margin-top: 0.5rem;"></div>
+                            <script>
+                                new LogViewer('log-journalctl-{{ key }}', {{ journal_data.content | tojson }});
+                            </script>
+                        </details>
+                        {% endfor %}
                         {% endif %}
                     {% else %}
                     <p>No system log data available</p>
