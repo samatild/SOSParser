@@ -35,6 +35,8 @@ class LogViewer {
             wholeWord: false
         };
         
+        this.grepFilter = false;
+        
         this.render();
         this.attachEventListeners();
     }
@@ -55,6 +57,9 @@ class LogViewer {
                             </button>
                             <button class="logviewer-btn logviewer-btn-small" data-action="next-match" title="Next Match (Enter)">
                                 ↓
+                            </button>
+                            <button class="logviewer-btn logviewer-btn-small" data-action="grep-filter" title="Filter Matching Lines (like grep)">
+                                Grep
                             </button>
                             <button class="logviewer-btn logviewer-btn-small" data-action="clear-search" title="Clear Search">
                                 ✕
@@ -169,7 +174,14 @@ class LogViewer {
         
         // Apply filters
         this.filteredLines = this.lines.filter((line, index) => {
-            // Check if any filter is active
+            // Apply grep filter first if active
+            if (this.grepFilter && searchTerm) {
+                if (!this.lineMatchesSearch(line, searchTerm)) {
+                    return false;
+                }
+            }
+            
+            // Check if any log level filter is active
             const hasActiveFilter = Object.values(this.filters).some(f => f);
             if (!hasActiveFilter) return true;
             
@@ -336,7 +348,12 @@ class LogViewer {
                 break;
             case 'clear-search':
                 this.container.querySelector('.logviewer-search-input').value = '';
+                this.grepFilter = false;
+                this.updateGrepButtonState();
                 this.handleSearch();
+                break;
+            case 'grep-filter':
+                this.toggleGrepFilter();
                 break;
             case 'clear-filters':
                 Object.keys(this.filters).forEach(key => this.filters[key] = false);
@@ -357,12 +374,51 @@ class LogViewer {
     
     copyToClipboard() {
         const text = this.filteredLines.join('\n');
-        navigator.clipboard.writeText(text).then(() => {
-            const btn = this.container.querySelector('[data-action="copy"]');
-            const originalText = btn.textContent;
-            btn.textContent = '✓ Copied!';
+        const btn = this.container.querySelector('[data-action="copy"]');
+        const originalText = btn.textContent;
+        
+        // Try modern clipboard API first
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    btn.textContent = '✓ Copied!';
+                    setTimeout(() => btn.textContent = originalText, 2000);
+                })
+                .catch(err => {
+                    console.error('Clipboard API failed:', err);
+                    this.fallbackCopyToClipboard(text, btn, originalText);
+                });
+        } else {
+            // Fallback for older browsers
+            this.fallbackCopyToClipboard(text, btn, originalText);
+        }
+    }
+    
+    fallbackCopyToClipboard(text, btn, originalText) {
+        // Create a temporary textarea element
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                btn.textContent = '✓ Copied!';
+                setTimeout(() => btn.textContent = originalText, 2000);
+            } else {
+                btn.textContent = '✗ Copy failed';
+                setTimeout(() => btn.textContent = originalText, 2000);
+            }
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            btn.textContent = '✗ Copy failed';
             setTimeout(() => btn.textContent = originalText, 2000);
-        });
+        } finally {
+            document.body.removeChild(textarea);
+        }
     }
     
     downloadLogs() {
@@ -443,6 +499,33 @@ class LogViewer {
     
     escapeRegex(text) {
         return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    
+    toggleGrepFilter() {
+        const searchInput = this.container.querySelector('.logviewer-search-input');
+        const searchTerm = searchInput.value;
+        
+        if (!searchTerm) {
+            // Can't activate grep filter without a search term
+            const btn = this.container.querySelector('[data-action="grep-filter"]');
+            const originalTitle = btn.title;
+            btn.title = 'Enter a search term first';
+            setTimeout(() => btn.title = originalTitle, 2000);
+            return;
+        }
+        
+        this.grepFilter = !this.grepFilter;
+        this.updateGrepButtonState();
+        this.updateLogDisplay();
+    }
+    
+    updateGrepButtonState() {
+        const btn = this.container.querySelector('[data-action="grep-filter"]');
+        if (btn) {
+            btn.classList.toggle('active', this.grepFilter);
+            btn.style.backgroundColor = this.grepFilter ? '#4CAF50' : '';
+            btn.style.color = this.grepFilter ? 'white' : '';
+        }
     }
 }
 
