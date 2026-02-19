@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Advanced security analysis modules
 - Custom scenario configuration via JSON
 
+## [0.2.24] - 2026-02-19
+
+### Added
+- **Version Update Checker**: Main page footer now displays update availability status
+    
+- **Log Viewer Grep Filter**: New "Grep" button filters view to show only lines matching search term
+  
+### Fixed
+- **Log Viewer Copy Button**: Fixed clipboard copy functionality with proper error handling
+  
+---
+
 ## [0.2.23] - 2026-02-11
 
 ### Added
@@ -558,7 +570,9 @@ Future releases will include:
 
 ---
 
-[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.21...HEAD
+[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.24...HEAD
+[0.2.24]: https://github.com/samatild/SOSParser/releases/tag/v0.2.24
+[0.2.23]: https://github.com/samatild/SOSParser/compare/v0.2.23...v0.2.24
 [0.2.21]: https://github.com/samatild/SOSParser/releases/tag/v0.2.21
 [0.2.20]: https://github.com/samatild/SOSParser/compare/v0.2.20...v0.2.21
 [0.2.19]: https://github.com/samatild/SOSParser/compare/v0.2.19...v0.2.20
