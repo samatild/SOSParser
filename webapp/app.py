@@ -9,6 +9,8 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 
 from flask import (
     Flask,
@@ -980,6 +982,70 @@ def create_app() -> Flask:
         )
         resp.headers["X-Content-Type-Options"] = "nosniff"
         return resp
+
+    @app.get("/api/version/check")
+    def check_version():
+        """Check for latest version on DockerHub."""
+        current_version = __version__
+        
+        def parse_version(version_string):
+            """Parse semantic version into tuple for comparison."""
+            try:
+                parts = version_string.lstrip('v').split('.')
+                return tuple(int(p) for p in parts)
+            except (ValueError, AttributeError):
+                return (0, 0, 0)
+        
+        try:
+            # DockerHub API endpoint for tags
+            url = "https://hub.docker.com/v2/repositories/samuelmatildes/sosparser/tags/?page_size=100"
+            req = Request(url)
+            req.add_header('User-Agent', 'SOSParser-Version-Checker')
+            
+            with urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                
+                # Filter out 'latest' and get version tags
+                version_tags = []
+                for tag in data.get('results', []):
+                    tag_name = tag.get('name', '')
+                    # Skip 'latest' and tags that don't look like versions
+                    if tag_name != 'latest' and (tag_name.startswith('0.') or tag_name.startswith('1.')):
+                        version_tags.append(tag_name)
+                
+                if version_tags:
+                    # Sort versions using semantic versioning (tuple comparison)
+                    version_tags.sort(key=parse_version, reverse=True)
+                    latest_version = version_tags[0]
+                    
+                    # Compare versions semantically
+                    current_tuple = parse_version(current_version)
+                    latest_tuple = parse_version(latest_version)
+                    update_available = latest_tuple > current_tuple
+                    
+                    return jsonify({
+                        "current": current_version,
+                        "latest": latest_version,
+                        "update_available": update_available,
+                        "status": "ok"
+                    })
+                else:
+                    return jsonify({
+                        "current": current_version,
+                        "latest": current_version,
+                        "update_available": False,
+                        "status": "no_tags_found"
+                    })
+                    
+        except (URLError, HTTPError, json.JSONDecodeError, KeyError) as e:
+            # Return current version if check fails
+            return jsonify({
+                "current": current_version,
+                "latest": None,
+                "update_available": False,
+                "status": "error",
+                "error": str(e)
+            })
 
     @app.get("/healthz")
     def healthz():

@@ -310,6 +310,73 @@ main {
   margin-top: auto;
 }
 
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.version-checker {
+  font-size: 0.8rem;
+}
+
+.version-status {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.version-current {
+  color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.version-outdated {
+  color: #ff9800;
+  background: rgba(255, 152, 0, 0.1);
+  animation: pulse-warning 2s ease-in-out infinite;
+  text-decoration: none;
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.version-outdated:hover {
+  background: rgba(255, 152, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.version-unknown {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+@keyframes pulse-warning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@media (min-width: 768px) {
+  .footer-content {
+    flex-direction: row;
+    gap: 1rem;
+    align-items: center;
+  }
+  
+  .footer-content > span:not(:last-child)::after {
+    content: '|';
+    margin-left: 1rem;
+    color: var(--border-color);
+  }
+}
+
 /* Upload Progress Overlay */
 .upload-overlay {
   position: fixed;

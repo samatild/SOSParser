@@ -99,6 +99,29 @@ In Private Mode:
 - "Saved Reports" button allows browsing and managing generated reports
 - Use volume mounts (see above) to persist data across container restarts
 
+### Update
+
+To update to the latest version of SOSParser:
+
+```bash
+# Stop and remove the current container
+docker stop sosparser
+docker rm sosparser
+
+# Pull the latest image
+docker pull samuelmatildes/sosparser:latest
+
+# Start a new container with the same settings
+docker run -d -p 8000:8000 --name sosparser samuelmatildes/sosparser:latest
+
+# Or if using docker-compose
+docker-compose pull
+docker-compose down
+docker-compose up -d
+```
+
+**Note**: If you're using volume mounts for persistent data, your saved reports will be preserved across updates.
+
 #### Configuring Log Line Limits
 
 By default, SOSParser reads the last **1000 lines** from each log file. You can adjust this via environment variables:
