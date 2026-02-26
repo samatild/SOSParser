@@ -267,13 +267,14 @@ class SystemConfigAnalyzer:
             lines = [l for l in raw.splitlines() if l.strip()]
             # Skip header lines until we find the column header
             for line in lines:
-                if line.lower().startswith('unit '):
+                stripped = line.strip()
+                if stripped.lower().startswith('unit '):
                     continue
-                if line.startswith('LOAD '):
+                if stripped.startswith('LOAD '):
                     continue
-                if 'units listed' in line:
+                if 'units listed' in stripped:
                     continue
-                parts = line.split(None, 4)
+                parts = stripped.split(None, 4)
                 if len(parts) >= 5:
                     unit, load, active, sub, desc = parts[0:5]
                 elif len(parts) >= 4:
@@ -295,13 +296,14 @@ class SystemConfigAnalyzer:
             data['failed_services'] = raw
             lines = [l for l in raw.splitlines() if l.strip()]
             for line in lines:
-                if line.lower().startswith('unit '):
+                stripped = line.strip()
+                if stripped.lower().startswith('unit '):
                     continue
-                if line.startswith('LOAD '):
+                if stripped.startswith('LOAD '):
                     continue
-                if 'failed units listed' in line:
+                if 'units listed' in stripped:
                     continue
-                parts = line.split(None, 4)
+                parts = stripped.split(None, 4)
                 if len(parts) >= 5:
                     unit, load, active, sub, desc = parts[0:5]
                 elif len(parts) >= 4:
