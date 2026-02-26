@@ -107,6 +107,30 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+
+    // Health summary finding rows:
+    // - If the row has evidence, clicking the whole row toggles the evidence panel.
+    // - If no evidence but has a tab target, clicking navigates to that tab.
+    document.querySelectorAll('.health-finding').forEach(function(row) {
+        row.addEventListener('click', function(e) {
+            e.preventDefault();
+            var wrapper = this.closest('.health-finding-wrapper');
+            var panel = wrapper ? wrapper.querySelector('.health-evidence') : null;
+            if (panel) {
+                // Toggle evidence panel and rotate chevron
+                panel.classList.toggle('expanded');
+                var chevron = this.querySelector('.health-evidence-chevron');
+                if (chevron) chevron.classList.toggle('open');
+            } else {
+                // No evidence – navigate to linked tab
+                var target = this.getAttribute('data-tab-target');
+                if (!target) return;
+                var tabBtn = document.querySelector('.tab-button[data-tab="' + target + '"]');
+                if (tabBtn) tabBtn.click();
+            }
+        });
+    });
 });
 
 // Toggle scenario details
@@ -123,11 +147,14 @@ function toggleScenarioDetails(header) {
     }
 }
 
-// Add smooth scrolling to all links
+// Add smooth scrolling to all anchor links (skip health-finding links handled above)
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    if (anchor.classList.contains('health-finding')) return;
     anchor.addEventListener('click', function (e) {
         e.preventDefault();
-        const target = document.querySelector(this.getAttribute('href'));
+        const href = this.getAttribute('href');
+        if (!href || href === '#') return;
+        const target = document.querySelector(href);
         if (target) {
             target.scrollIntoView({
                 behavior: 'smooth',

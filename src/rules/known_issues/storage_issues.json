@@ -1,0 +1,171 @@
+{
+  "collection": "storage_issues",
+  "description": "Filesystem and storage-related known issues",
+  "version": "1.0",
+  "rules": [
+    {
+      "id": "xfs-error",
+      "name": "XFS Filesystem Error",
+      "description": "Detects XFS corruption or error messages",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "boot.txt",
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bXFS\\b.*(error|corrupt|shutdown|Unmount|internal error)",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "critical",
+      "category": "Filesystem",
+      "title": "XFS filesystem error(s) detected ({match_count})",
+      "detail": "XFS errors may indicate disk or controller issues",
+      "section_link": "filesystem",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "ext4-error",
+      "name": "EXT4 Filesystem Error",
+      "description": "Detects EXT4 filesystem errors",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "boot.txt",
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bEXT4-fs\\b.*(error|warning|abort|remount)",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "critical",
+      "category": "Filesystem",
+      "title": "EXT4 filesystem error(s) detected ({match_count})",
+      "detail": "EXT4 errors may indicate disk corruption",
+      "section_link": "filesystem",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "btrfs-error",
+      "name": "Btrfs Filesystem Error",
+      "description": "Detects Btrfs filesystem errors or corruption",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "boot.txt",
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bBTRFS\\b.*(error|corrupt|warning|csum failed)",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "critical",
+      "category": "Filesystem",
+      "title": "Btrfs filesystem error(s) detected ({match_count})",
+      "detail": "Btrfs errors found – check data integrity",
+      "section_link": "filesystem",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "readonly-remount",
+      "name": "Read-Only Remount",
+      "description": "Detects filesystem remounted read-only due to errors",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "boot.txt",
+          "messages.txt"
+        ]
+      },
+      "regex": "Remounting filesystem read-only",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "critical",
+      "category": "Filesystem",
+      "title": "Filesystem remounted read-only ({match_count})",
+      "detail": "A filesystem was forced read-only due to errors",
+      "section_link": "filesystem",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "io-errors",
+      "name": "I/O Errors",
+      "description": "Detects block device I/O errors",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T"
+        ],
+        "supportconfig": [
+          "boot.txt"
+        ]
+      },
+      "regex": "\\b(I/O error|Buffer I/O error|blk_update_request.*I/O error)\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "critical",
+      "category": "Storage",
+      "title": "I/O error(s) detected ({match_count})",
+      "detail": "Block device I/O errors – check disk health",
+      "section_link": "filesystem",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "disk-smart-failure",
+      "name": "SMART Disk Failure Warning",
+      "description": "Detects SMART self-test failure indicators",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "boot.txt",
+          "messages.txt"
+        ]
+      },
+      "regex": "\\b(SMART.*(?:error|fail)|CurrentPendingSector|ReallocatedSector)\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "warning",
+      "category": "Storage",
+      "title": "SMART disk warning(s) detected ({match_count})",
+      "detail": "Disk self-test indicates potential failure",
+      "section_link": "filesystem",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    }
+  ]
+}

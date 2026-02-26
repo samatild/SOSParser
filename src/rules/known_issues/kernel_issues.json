@@ -1,0 +1,137 @@
+{
+  "collection": "kernel_issues",
+  "description": "Known kernel-related issues: panics, oops, taints, BUG traces",
+  "version": "1.0",
+  "rules": [
+    {
+      "id": "kernel-panic",
+      "name": "Kernel Panic Detected",
+      "description": "Detects kernel panic events in dmesg or system logs",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "boot.txt",
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bKernel panic\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "critical",
+      "category": "Kernel",
+      "title": "Kernel panic detected ({match_count} occurrence(s))",
+      "detail": "Check dmesg and system logs for panic stack traces",
+      "section_link": "logs",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "kernel-oops",
+      "name": "Kernel Oops Detected",
+      "description": "Detects kernel Oops (non-fatal fault) events",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "boot.txt",
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bOops\\b.*#\\d+",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "critical",
+      "category": "Kernel",
+      "title": "Kernel Oops detected ({match_count} occurrence(s))",
+      "detail": "Non-fatal kernel fault – review dmesg for affected subsystem",
+      "section_link": "logs",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "kernel-bug",
+      "name": "Kernel BUG Detected",
+      "description": "Detects BUG: assertions and call traces from kernel code",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "boot.txt",
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bBUG:\\s",
+      "regex_flags": [],
+      "severity": "critical",
+      "category": "Kernel",
+      "title": "Kernel BUG assertion detected ({match_count} occurrence(s))",
+      "detail": "Kernel BUG macro triggered – review call trace",
+      "section_link": "logs",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "kernel-call-trace",
+      "name": "Kernel Call Trace",
+      "description": "Detects call trace dumps indicating kernel issues",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T"
+        ],
+        "supportconfig": [
+          "boot.txt"
+        ]
+      },
+      "regex": "Call Trace:",
+      "regex_flags": [],
+      "severity": "warning",
+      "category": "Kernel",
+      "title": "Kernel call trace(s) found ({match_count})",
+      "detail": "Stack dumps present in dmesg",
+      "section_link": "logs",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "kernel-tainted",
+      "name": "Kernel Tainted",
+      "description": "Detects tainted kernel flag in /proc/sys/kernel/tainted",
+      "applies_to": "sosreport",
+      "file_paths": {
+        "sosreport": [
+          "proc/sys/kernel/tainted"
+        ]
+      },
+      "regex": "^[1-9]\\d*$",
+      "regex_flags": ["MULTILINE"],
+      "severity": "warning",
+      "category": "Kernel",
+      "title": "Kernel is tainted",
+      "detail": "Non-zero tainted flag – third-party or out-of-tree modules loaded",
+      "section_link": "summary",
+      "count_matches": false,
+      "min_matches": 1,
+      "enabled": true
+    }
+  ]
+}

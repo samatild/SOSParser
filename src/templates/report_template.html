@@ -103,6 +103,70 @@
             {%- endmacro %}
             <!-- Summary Tab -->
             <section id="summary" class="tab-content active">
+
+                <!-- Top-line Health Summary Card -->
+                {% if health_summary and health_summary.status and health_summary.status != 'ok' %}
+                <div class="health-summary-card health-{{ health_summary.status }}">
+                    <div class="health-header">
+                        <div class="health-status-badge health-badge-{{ health_summary.status }}">
+                            {% if health_summary.status == 'critical' %}
+                                <span class="health-icon">&#9888;</span> Critical
+                            {% elif health_summary.status == 'warning' %}
+                                <span class="health-icon">&#9888;</span> Warnings
+                            {% else %}
+                                <span class="health-icon">&#10003;</span> Healthy
+                            {% endif %}
+                        </div>
+                        <div class="health-counts">
+                            {% if health_summary.critical_count > 0 %}
+                            <span class="health-count health-count-critical">{{ health_summary.critical_count }} critical</span>
+                            {% endif %}
+                            {% if health_summary.warning_count > 0 %}
+                            <span class="health-count health-count-warning">{{ health_summary.warning_count }} warning{{ 's' if health_summary.warning_count != 1 }}</span>
+                            {% endif %}
+                            {% if health_summary.critical_count == 0 and health_summary.warning_count == 0 %}
+                            <span class="health-count health-count-ok">No issues detected</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if health_summary.findings %}
+                    <div class="health-findings">
+                        <div class="health-findings-title">Key Findings</div>
+                        <div class="health-findings-list">
+                            {% for finding in health_summary.findings %}
+                            <div class="health-finding-wrapper">
+                                <a class="health-finding health-finding-{{ finding.severity }}" href="#" {% if finding.section_link %}data-tab-target="{{ finding.section_link }}"{% endif %} {% if finding.evidence %}data-has-evidence="1"{% endif %}>
+                                    <span class="health-finding-icon">
+                                        {% if finding.severity == 'critical' %}&#9679;{% else %}&#9679;{% endif %}
+                                    </span>
+                                    <span class="health-finding-category">{{ finding.category }}</span>
+                                    <span class="health-finding-title">{{ finding.title }}</span>
+                                    {% if finding.detail %}
+                                    <span class="health-finding-detail">{{ finding.detail }}</span>
+                                    {% endif %}
+                                    {% if finding.evidence %}
+                                    <span class="health-evidence-chevron">&#9662;</span>
+                                    {% endif %}
+                                </a>
+                                {% if finding.evidence %}
+                                <div class="health-evidence">
+                                    {% for ev in finding.evidence %}
+                                    <div class="health-evidence-line">
+                                        <span class="health-evidence-file">{{ ev.file }}:{{ ev.line_num }}</span>
+                                        <code class="health-evidence-text">{{ ev.line }}</code>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
                 <h2>System Summary</h2>
                 
                 <div class="info-grid">
@@ -139,6 +203,12 @@
                             <tr>
                                 <td class="label">Load Average</td>
                                 <td class="value">{{ summary.system_load.loadavg }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if health_summary and health_summary.primary_ips %}
+                            <tr>
+                                <td class="label">Primary IPs</td>
+                                <td class="value">{{ health_summary.primary_ips | join(', ') }}</td>
                             </tr>
                             {% endif %}
                         </table>

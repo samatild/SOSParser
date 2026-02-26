@@ -32,6 +32,8 @@ from analyzers.supportconfig.updates import SupportconfigUpdates
 from analyzers.supportconfig.process import SupportconfigProcess
 from analyzers.supportconfig.parser import SupportconfigParser
 
+from analyzers.health_summary import compute_health_summary
+
 from reporting.report_generator import (
     prepare_report_data,
     format_scenario_results_html
@@ -414,6 +416,27 @@ class SOSReportAnalyzer:
                 }
 
             Logger.memory("Before prepare_report_data")
+
+            # Compute top-line health summary
+            Logger.debug("Computing health summary.")
+            # Build a combined summary dict for the health analyzer
+            _health_summary_input = {
+                'os_info': os_info,
+                'kernel_info': kernel_info,
+                'uptime': uptime,
+                'system_resources': (enhanced_summary or {}).get('system_resources', {}),
+                'kernel_tainted': (enhanced_summary or {}).get('kernel_tainted', ''),
+            }
+            health_summary = compute_health_summary(
+                summary=_health_summary_input,
+                system_config=system_config,
+                network=network,
+                logs=logs,
+                updates=updates,
+                format_type=format_type,
+                base_path=extracted_dir,
+            )
+            Logger.memory("After compute_health_summary")
                         
             report_data = prepare_report_data(
                 os_info=os_info,
@@ -441,6 +464,7 @@ class SOSReportAnalyzer:
                 updates=updates,
                 processes=processes,
                 sar=sar,
+                health_summary=health_summary,
             )
             Logger.memory("After prepare_report_data")
             

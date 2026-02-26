@@ -1,0 +1,112 @@
+{
+  "collection": "security_issues",
+  "description": "Security-related known issues: segfaults, authentication failures",
+  "version": "1.0",
+  "rules": [
+    {
+      "id": "segfault",
+      "name": "Segmentation Fault",
+      "description": "Detects segmentation fault events in kernel logs",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "boot.txt",
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bsegfault\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "critical",
+      "category": "Security",
+      "title": "Segfault(s) detected ({match_count})",
+      "detail": "Process memory violation – may indicate bugs or exploitation",
+      "section_link": "logs",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "auth-failure-brute",
+      "name": "Excessive Authentication Failures",
+      "description": "Detects many authentication failure events (potential brute-force)",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "var/log/auth.log",
+          "var/log/secure"
+        ],
+        "supportconfig": [
+          "messages.txt"
+        ]
+      },
+      "regex": "\\b(authentication failure|Failed password|Invalid user)\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "warning",
+      "category": "Security",
+      "title": "Excessive auth failures ({match_count})",
+      "detail": "May indicate brute-force attack or misconfiguration",
+      "section_link": "logs",
+      "count_matches": true,
+      "min_matches": 50,
+      "enabled": true
+    },
+    {
+      "id": "apparmor-denied",
+      "name": "AppArmor Denials",
+      "description": "Detects AppArmor DENIED events",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "var/log/syslog",
+          "var/log/messages"
+        ],
+        "supportconfig": [
+          "boot.txt",
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bapparmor=\"DENIED\"\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "warning",
+      "category": "Security",
+      "title": "AppArmor denial(s) detected ({match_count})",
+      "detail": "Processes blocked by AppArmor policy",
+      "section_link": "logs",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "selinux-denied",
+      "name": "SELinux AVC Denials",
+      "description": "Detects SELinux AVC denied events",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "var/log/audit/audit.log",
+          "var/log/messages"
+        ],
+        "supportconfig": [
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bavc:\\s+denied\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "warning",
+      "category": "Security",
+      "title": "SELinux AVC denial(s) detected ({match_count})",
+      "detail": "Processes blocked by SELinux policy",
+      "section_link": "logs",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    }
+  ]
+}
