@@ -1,0 +1,112 @@
+{
+  "collection": "network_issues",
+  "description": "Network-related known issues: link failures, NIC errors",
+  "version": "1.0",
+  "rules": [
+    {
+      "id": "nic-link-down",
+      "name": "NIC Link Down",
+      "description": "Detects network interface link-down events",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "boot.txt",
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bNIC Link is Down\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "warning",
+      "category": "Network",
+      "title": "NIC link-down event(s) detected ({match_count})",
+      "detail": "Network interface lost carrier",
+      "section_link": "network",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "network-unreachable",
+      "name": "Network Unreachable",
+      "description": "Detects 'network is unreachable' errors in logs",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "var/log/messages",
+          "var/log/syslog",
+          "sos_commands/logs/journalctl_--no-pager"
+        ],
+        "supportconfig": [
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bNetwork is unreachable\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "warning",
+      "category": "Network",
+      "title": "Network unreachable error(s) ({match_count})",
+      "detail": "Routing or connectivity issues detected",
+      "section_link": "network",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "rx-tx-errors",
+      "name": "NIC RX/TX Errors",
+      "description": "Detects receive/transmit errors on network interfaces",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/networking/ip_-s_link"
+        ],
+        "supportconfig": [
+          "network.txt"
+        ]
+      },
+      "regex": "(?:RX|TX)\\s+errors\\s+[1-9]\\d*",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "warning",
+      "category": "Network",
+      "title": "NIC RX/TX errors detected ({match_count} interface(s))",
+      "detail": "Interface packet errors may indicate cable or driver issues",
+      "section_link": "network",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "nfs-stale-handle",
+      "name": "NFS Stale File Handle",
+      "description": "Detects NFS stale file handle errors",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "var/log/messages",
+          "var/log/syslog",
+          "sos_commands/logs/journalctl_--no-pager"
+        ],
+        "supportconfig": [
+          "messages.txt",
+          "nfs.txt"
+        ]
+      },
+      "regex": "\\bStale (file handle|NFS file handle)\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "warning",
+      "category": "Network",
+      "title": "NFS stale file handle error(s) ({match_count})",
+      "detail": "NFS server may have restarted or export changed",
+      "section_link": "network",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "collection": "service_issues",
+  "description": "Systemd and service-related known issues",
+  "version": "1.0",
+  "rules": [
+    {
+      "id": "service-crash-loop",
+      "name": "Service Crash Looping",
+      "description": "Detects services entering start-limit-hit or crash-loop states",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/logs/journalctl_--no-pager",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "messages.txt"
+        ]
+      },
+      "regex": "\\b(start-limit-hit|Start request repeated too quickly|Failed with result 'start-limit-hit')\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "critical",
+      "category": "Services",
+      "title": "Service crash-loop detected ({match_count})",
+      "detail": "Service repeatedly failing to start",
+      "section_link": "system-config",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "systemd-coredump",
+      "name": "Systemd Coredump",
+      "description": "Detects systemd-coredump events (process crash dumps)",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/logs/journalctl_--no-pager",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bsystemd-coredump\\b.*\\bProcess\\b.*\\bof\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "warning",
+      "category": "Services",
+      "title": "Coredump(s) captured ({match_count})",
+      "detail": "Processes crashed and produced core dumps",
+      "section_link": "crash",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "service-timeout",
+      "name": "Service Start Timeout",
+      "description": "Detects service start timeouts",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/logs/journalctl_--no-pager",
+          "var/log/messages",
+          "var/log/syslog"
+        ],
+        "supportconfig": [
+          "messages.txt"
+        ]
+      },
+      "regex": "\\bTimed out waiting for device\\b|\\bjob .* timed out\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "warning",
+      "category": "Services",
+      "title": "Service timeout(s) detected ({match_count})",
+      "detail": "Services timed out during startup",
+      "section_link": "system-config",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    }
+  ]
+}

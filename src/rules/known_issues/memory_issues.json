@@ -1,0 +1,61 @@
+{
+  "collection": "memory_issues",
+  "description": "Memory-related issues: OOM killer, memory allocation failures",
+  "version": "1.0",
+  "rules": [
+    {
+      "id": "oom-killer-invoked",
+      "name": "OOM Killer Invoked",
+      "description": "Detects Out-Of-Memory killer activation",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T",
+          "var/log/messages",
+          "var/log/syslog",
+          "sos_commands/logs/journalctl_--no-pager"
+        ],
+        "supportconfig": [
+          "boot.txt",
+          "messages.txt"
+        ]
+      },
+      "regex": "\\b(oom-killer|oom_reaper|Out of memory: Kill(ed)? process)\\b",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "critical",
+      "category": "Memory",
+      "title": "OOM Killer invoked ({match_count} event(s))",
+      "detail": "System ran out of memory and killed processes",
+      "section_link": "logs",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    },
+    {
+      "id": "memory-allocation-failure",
+      "name": "Memory Allocation Failure",
+      "description": "Detects page allocation failures in kernel logs",
+      "applies_to": "both",
+      "file_paths": {
+        "sosreport": [
+          "sos_commands/kernel/dmesg",
+          "sos_commands/kernel/dmesg_-T"
+        ],
+        "supportconfig": [
+          "boot.txt"
+        ]
+      },
+      "regex": "page allocation failure",
+      "regex_flags": ["IGNORECASE"],
+      "severity": "warning",
+      "category": "Memory",
+      "title": "Page allocation failure(s) detected ({match_count})",
+      "detail": "Kernel could not allocate memory pages",
+      "section_link": "logs",
+      "count_matches": true,
+      "min_matches": 1,
+      "enabled": true
+    }
+  ]
+}
