@@ -217,7 +217,7 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 
     function collectTextNodes() {
         var nodes = [];
-        document.querySelectorAll('td, pre, code').forEach(function (el) {
+        document.querySelectorAll('h2, h3, h4, h5, th, td, pre, code').forEach(function (el) {
             walkText(el, nodes);
         });
         return nodes;
