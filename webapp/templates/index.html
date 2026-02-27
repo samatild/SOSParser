@@ -65,7 +65,7 @@
             </div>
 
             <div class="form-actions">
-              <button type="submit" class="btn-primary">Parse & Analyze</button>
+              <button type="submit" class="btn-primary">Parse &amp; Analyze</button>
             </div>
           </form>
 
@@ -117,8 +117,24 @@
         </div>
         
         <p class="upload-status" id="upload-status">Preparing upload...</p>
-        
-        <!-- Collapsible Console -->
+
+        <!-- SAR File Selector (shown when sar_selection response received) -->
+        <div id="sar-selector" style="display:none;">
+          <div class="sar-selector-header">
+            <h3>SAR Data Found</h3>
+            <p class="sar-selector-desc">Select the days you want to include in the analysis. Deselect all to skip SAR entirely.</p>
+          </div>
+          <div id="sar-file-list" class="sar-file-list"></div>
+          <div class="sar-perf-warning">
+            <span class="sar-perf-icon">⚠️</span>
+            <span>Each SAR day adds significant data to the report. Select only the days you need — more files will slow down browser navigation.</span>
+          </div>
+          <div class="sar-selector-actions">
+            <button type="button" class="btn-sar-secondary" id="sar-select-all">Select all</button>
+            <button type="button" class="btn-sar-secondary" id="sar-select-none">Deselect all</button>
+            <button type="button" class="btn-primary" id="sar-start-btn">Start Analysis</button>
+          </div>
+        </div>
         <div class="console-container" id="console-container">
           <button type="button" class="console-toggle" id="console-toggle">
             <span class="console-toggle-icon">▶</span>

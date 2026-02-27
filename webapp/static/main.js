@@ -167,7 +167,10 @@ class ChunkedUploader {
     document.getElementById('upload-status').textContent = 'Starting analysis...';
     document.getElementById('upload-title').textContent = 'Analyzing Report';
     document.getElementById('upload-progress-fill').classList.add('analyzing');
-    
+
+    // Read SAR checkbox from the form
+    const analyzeSar = true; // Always probe for SAR files; user selects days in the next step
+
     // Show and expand console for analysis phase
     document.getElementById('console-container').style.display = 'block';
     toggleConsole(true);
@@ -177,7 +180,7 @@ class ChunkedUploader {
     const response = await fetch('/api/upload/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uploadId: this.uploadId }),
+      body: JSON.stringify({ uploadId: this.uploadId, analyzeSar }),
     });
 
     if (!response.ok) {
@@ -186,16 +189,94 @@ class ChunkedUploader {
     }
 
     const result = await response.json();
-    
+
+    // SAR selection step: let user pick which days to analyze
+    if (result.status === 'sar_selection' && result.token) {
+      return await this.showSarSelector(result.token, result.sarFiles || []);
+    }
+
     if (result.status === 'processing' && result.token) {
       // Connect to SSE log stream
       addConsoleLine('Connecting to analysis stream...', 'info');
       return await this.streamLogs(result.token);
     }
-    
+
     return result;
   }
-  
+
+  async showSarSelector(token, sarFiles) {
+    // Update status text; leave progress bar as-is (upload 100%)
+    document.getElementById('upload-status').textContent = 'Select SAR days to analyze:';
+    document.getElementById('console-container').style.display = 'none';
+
+    const selector = document.getElementById('sar-selector');
+    selector.style.display = 'block';
+
+    // Populate the file list with checkboxes
+    const list = document.getElementById('sar-file-list');
+    list.innerHTML = '';
+    sarFiles.forEach(function(f) {
+      const label = document.createElement('label');
+      label.className = 'sar-file-item';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = f.name;
+      cb.checked = true;
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'sar-file-name';
+      nameSpan.textContent = f.name;
+      const dateSpan = document.createElement('span');
+      dateSpan.className = 'sar-file-date';
+      dateSpan.textContent = f.date_display;
+      label.appendChild(cb);
+      label.appendChild(nameSpan);
+      label.appendChild(dateSpan);
+      list.appendChild(label);
+    });
+
+    // Select All / Deselect All buttons
+    document.getElementById('sar-select-all').onclick = function() {
+      list.querySelectorAll('input[type=checkbox]').forEach(function(cb) { cb.checked = true; });
+    };
+    document.getElementById('sar-select-none').onclick = function() {
+      list.querySelectorAll('input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
+    };
+
+    // Return a Promise resolved when the user clicks "Start Analysis"
+    return new Promise((resolve, reject) => {
+      document.getElementById('sar-start-btn').onclick = async () => {
+        const selectedFiles = Array.from(
+          list.querySelectorAll('input[type=checkbox]:checked')
+        ).map(cb => cb.value);
+
+        // Hide SAR selector, show console
+        selector.style.display = 'none';
+        const progressContainer = document.getElementById('upload-progress-container');
+        if (progressContainer) progressContainer.style.display = '';
+        document.getElementById('console-container').style.display = 'block';
+        toggleConsole(true);
+        clearConsole();
+        document.getElementById('upload-status').textContent = 'Starting analysis...';
+        addConsoleLine(`Starting analysis with ${selectedFiles.length} SAR file(s)...`, 'info');
+
+        try {
+          const r = await fetch('/api/upload/start-analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, selectedSarFiles: selectedFiles }),
+          });
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.error || 'Failed to start analysis');
+          addConsoleLine('Connecting to analysis stream...', 'info');
+          const result = await this.streamLogs(token);
+          resolve(result);
+        } catch (err) {
+          reject(err);
+        }
+      };
+    });
+  }
+
   async streamLogs(token) {
     return new Promise((resolve, reject) => {
       const eventSource = new EventSource(`/api/analysis/${token}/logs`);
