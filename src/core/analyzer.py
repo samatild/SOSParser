@@ -53,13 +53,15 @@ class SOSReportAnalyzer:
     """Main analyzer class for SOSReport files"""
     
     def __init__(self, tarball_path, save_next_to_tarball: bool = True,
-                 output_dir_override: str | None = None):
+                 output_dir_override: str | None = None,
+                 allowed_sar_files: list | None = None):
         Logger.debug(
             f"Initializing SOSReportAnalyzer with tarball_path: {tarball_path}"
         )
         self.tarball_path = Path(tarball_path)
         self.save_next_to_tarball = bool(save_next_to_tarball)
         self.output_dir_override = Path(output_dir_override).resolve() if output_dir_override else None
+        self.allowed_sar_files = allowed_sar_files  # None = all, [] = skip, [...] = selected
         self.template_dir = Path(__file__).parent.parent / 'templates'
         self.static_dir = Path(__file__).parent.parent / 'static'
         self.env = Environment(
@@ -216,7 +218,7 @@ class SOSReportAnalyzer:
         # Analyze SAR data (supportconfig may also have sar files)
         Logger.debug("Analyzing SAR data (supportconfig)")
         sar_analyzer = SarAnalyzer()
-        sar = sar_analyzer.analyze(extracted_dir)
+        sar = sar_analyzer.analyze(extracted_dir, allowed_files=self.allowed_sar_files)
         Logger.memory("SAR analysis complete")
         
         # Construct enhanced summary for supportconfig
@@ -366,7 +368,7 @@ class SOSReportAnalyzer:
                 
                 # Analyze SAR data
                 Logger.debug("Analyzing SAR data.")
-                sar = self.sar_analyzer.analyze(extracted_dir)
+                sar = self.sar_analyzer.analyze(extracted_dir, allowed_files=self.allowed_sar_files)
                 
             elif format_type == 'supportconfig':
                 Logger.debug("Using Supportconfig analyzers")
@@ -491,26 +493,30 @@ class SOSReportAnalyzer:
 
 
 def run_analysis(input_path, debug_mode=False, save_next_to_tarball: bool = True,
-                 output_dir_override: str | None = None):
+                 output_dir_override: str | None = None,
+                 allowed_sar_files: list | None = None):
     """
     Run the SOSReport analysis.
-    
+
     Args:
-        input_path: Path to the sosreport tarball
-        debug_mode: Enable debug logging
+        input_path:        Path to the sosreport tarball
+        debug_mode:        Enable debug logging
         save_next_to_tarball: Save output next to tarball (or in current dir)
         output_dir_override: Override output directory location
-        
+        allowed_sar_files: Optional list of bare SAR filenames to analyze.
+                           None = analyze all (default), [] = skip SAR entirely.
+
     Returns:
         Path to the generated report HTML file
     """
     Logger.info(f"Starting analysis for: {input_path}")
     Logger.debug("Instantiating SOSReportAnalyzer.")
-    
+
     analyzer = SOSReportAnalyzer(
         input_path,
         save_next_to_tarball=save_next_to_tarball,
-        output_dir_override=output_dir_override
+        output_dir_override=output_dir_override,
+        allowed_sar_files=allowed_sar_files,
     )
     
     # Validate tarball

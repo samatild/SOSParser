@@ -166,6 +166,12 @@ except Exception as e:
     raise
 
 try:
+    from utils.file_operations import peek_sar_files
+except Exception as e:
+    print(f"ERROR: Failed to import peek_sar_files: {e}")
+    raise
+
+try:
     from __version__ import __version__
 except Exception as e:
     print(f"WARNING: Failed to import version: {e}")
@@ -380,7 +386,7 @@ def create_app() -> Flask:
                 upload_method='direct'
             )
 
-        # Run the analyzer
+        # Run the analyzer (always probe all SAR files; chunked upload has the interactive selector)
         try:
             output_report_path = run_analysis(
                 str(tarball_path),
@@ -570,7 +576,8 @@ def create_app() -> Flask:
             "complete": complete,
         })
     
-    def _run_analysis_with_logging(tarball_path: str, output_dir: str, token: str, outputs_dir: Path):
+    def _run_analysis_with_logging(tarball_path: str, output_dir: str, token: str, outputs_dir: Path,
+                                    allowed_sar_files: list | None = None):
         """Run analysis in background thread with logging."""
         import sys
         import io
@@ -618,6 +625,7 @@ def create_app() -> Flask:
                     debug_mode=app.config.get("DEBUG_MODE", False),
                     save_next_to_tarball=False,
                     output_dir_override=output_dir,
+                    allowed_sar_files=allowed_sar_files,
                 )
                 
                 # Determine redirect URL
@@ -656,43 +664,52 @@ def create_app() -> Flask:
     @app.post("/api/upload/complete")
     def upload_complete():
         """Finalize the upload and start analysis in background.
-        
+
         Request JSON:
-            uploadId: Upload session ID
-        
-        Response JSON:
+            uploadId:   Upload session ID
+            analyzeSar: If true (default), peek tarball for SAR files and return
+                        a 'sar_selection' response so the user can choose which
+                        days to analyze.  If false, skip SAR analysis entirely.
+
+        Response JSON (normal):
             status: "processing"
-            token: Analysis token for tracking progress
+            token:  Analysis token for tracking progress
+
+        Response JSON (SAR selection):
+            status:   "sar_selection"
+            token:    Analysis token
+            sarFiles: list of {name, date_display, ...} dicts
         """
         data = request.get_json() or {}
         upload_id = data.get("uploadId")
-        
+        analyze_sar = data.get("analyzeSar", True)
+
         if not upload_id:
             return jsonify({"error": "uploadId is required"}), 400
-        
+
         uploads_dir = Path(app.config["UPLOAD_FOLDER"])
         session = _delete_session(uploads_dir, upload_id)
-        
+
         if not session:
             return jsonify({"error": "Upload session not found or expired"}), 404
-        
+
         temp_dir = Path(session["temp_dir"])
         filename = session["filename"]
         total_chunks = session["total_chunks"]
         received = session["received_chunks"]
-        
+
         if len(received) != total_chunks:
             missing = total_chunks - len(received)
             _remove_dir(temp_dir)
             return jsonify({"error": f"Upload incomplete. Missing {missing} chunks."}), 400
-        
+
         # Create final upload directory
         token = datetime.utcnow().strftime("%Y%m%d%H%M%S") + f"-{uuid.uuid4().hex[:8]}"
         upload_token_dir = Path(app.config["UPLOAD_FOLDER"]) / token
         output_token_dir = Path(app.config["OUTPUT_FOLDER"]) / token
         upload_token_dir.mkdir(parents=True, exist_ok=True)
         output_token_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Initialize analysis state
         outputs_dir = Path(app.config["OUTPUT_FOLDER"])
         _write_analysis_state(outputs_dir, token, {
@@ -701,7 +718,7 @@ def create_app() -> Flask:
             "filename": filename,
         })
         _append_log(outputs_dir, token, f"Reassembling file from {total_chunks} chunks...")
-        
+
         # Reassemble file from chunks using streaming copy
         # Uses shutil.copyfileobj to avoid loading entire chunks into memory
         tarball_path = upload_token_dir / filename
@@ -722,7 +739,7 @@ def create_app() -> Flask:
         finally:
             # Clean up temp chunks directory
             _remove_dir(temp_dir)
-        
+
         # Audit log: report generation started (chunked upload)
         if audit_logger.enabled:
             file_size = tarball_path.stat().st_size
@@ -734,19 +751,97 @@ def create_app() -> Flask:
                 user_agent=request.headers.get('User-Agent', 'unknown'),
                 upload_method='chunked'
             )
-        
+
+        # ── SAR-selection flow ───────────────────────────────────────────────
+        if analyze_sar:
+            sar_peek = peek_sar_files(tarball_path)
+            if sar_peek['files']:
+                _write_analysis_state(outputs_dir, token, {
+                    "status": "sar_selection",
+                    "filename": filename,
+                    "tarball_path": str(tarball_path),
+                    "output_dir": str(output_token_dir),
+                    "created": time.time(),
+                })
+                _append_log(outputs_dir, token,
+                            f"Found {len(sar_peek['files'])} SAR file(s) – waiting for selection...")
+                return jsonify({
+                    "status": "sar_selection",
+                    "token": token,
+                    "sarFiles": sar_peek['files'],
+                })
+            # No SAR files found – fall through to normal analysis
+
+        # ── Normal / skip-SAR flow ──────────────────────────────────────────
+        # allowed_sar_files=[] means "skip SAR"; None means "analyze all"
+        allowed_sar_files = [] if not analyze_sar else None
+
         # Start analysis in background thread
         analysis_thread = threading.Thread(
             target=_run_analysis_with_logging,
-            args=(str(tarball_path), str(output_token_dir), token, outputs_dir),
+            args=(str(tarball_path), str(output_token_dir), token, outputs_dir, allowed_sar_files),
             daemon=True,
         )
         analysis_thread.start()
-        
+
         return jsonify({
             "status": "processing",
             "token": token,
         })
+
+    @app.post("/api/upload/start-analysis")
+    def upload_start_analysis():
+        """Start analysis after a SAR-selection step.
+
+        Request JSON:
+            token:            Analysis token returned by /api/upload/complete
+            selectedSarFiles: List of bare filenames to analyze (e.g.
+                              ['sar20251118.xz', 'sar20251119.xz']).
+                              An empty list skips SAR entirely.
+
+        Response JSON:
+            status: "processing"
+            token:  Same token
+        """
+        data = request.get_json() or {}
+        token = data.get("token")
+        selected_sar_files = data.get("selectedSarFiles")  # list or None
+
+        if not token:
+            return jsonify({"error": "token is required"}), 400
+
+        outputs_dir = Path(app.config["OUTPUT_FOLDER"])
+        state = _read_analysis_state(outputs_dir, token)
+
+        if not state:
+            return jsonify({"error": "Analysis not found"}), 404
+
+        if state.get("status") != "sar_selection":
+            return jsonify({"error": "Analysis is not awaiting SAR selection"}), 400
+
+        tarball_path = state.get("tarball_path")
+        output_dir   = state.get("output_dir")
+        filename     = state.get("filename", "")
+
+        if not tarball_path or not output_dir:
+            return jsonify({"error": "Corrupt state: missing paths"}), 500
+
+        n_selected = len(selected_sar_files) if selected_sar_files is not None else "all"
+        _append_log(outputs_dir, token, f"Starting analysis with {n_selected} SAR file(s)...")
+        _write_analysis_state(outputs_dir, token, {
+            "status": "processing",
+            "started_at": time.time(),
+            "filename": filename,
+        })
+
+        analysis_thread = threading.Thread(
+            target=_run_analysis_with_logging,
+            args=(tarball_path, output_dir, token, outputs_dir, selected_sar_files),
+            daemon=True,
+        )
+        analysis_thread.start()
+
+        return jsonify({"status": "processing", "token": token})
     
     @app.get("/api/analysis/<token>/status")
     def analysis_status(token: str):

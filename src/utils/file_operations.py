@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """File operation utilities for SOSReport analyzer"""
 
+import re
 import tarfile
 import gzip
 import bz2
+from datetime import datetime
 from pathlib import Path
 from utils.logger import Logger
 
@@ -172,3 +174,62 @@ def get_diagnostic_date_from_content(extracted_dir: Path, format_type: str) -> s
         Logger.debug(f"Error extracting diagnostic date: {e}")
     
     return "Unknown"
+
+def peek_sar_files(tarball_path: Path) -> dict:
+    """
+    Inspect a tarball for SAR files without fully extracting it.
+
+    Returns:
+        dict with keys:
+          'format': 'sosreport' | 'supportconfig' | 'unknown'
+          'files':  list of dicts, each containing:
+                      name         – bare filename  (e.g. 'sar20251118.xz')
+                      date_display – human-readable (e.g. 'Nov 18, 2025')
+                    supportconfig extra: 'date' (YYYYMMDD string)
+                    sosreport extra:     'day'  (day-number string, e.g. '1')
+    """
+    result = {'format': 'unknown', 'files': []}
+    try:
+        with tarfile.open(str(tarball_path), 'r:*') as tf:
+            names = tf.getnames()
+    except Exception as e:
+        Logger.debug(f"peek_sar_files: could not open tarball: {e}")
+        return result
+
+    sc_files, sos_files = [], []
+    for name in names:
+        # Supportconfig: .../sar/sar20XXXXXXXX or .../sar/sar20XXXXXXXX.xz
+        sc_m = re.search(r'(?:^|/)sar/sar(\d{8})(\.xz)?$', name)
+        if sc_m:
+            date_str = sc_m.group(1)
+            try:
+                disp = datetime.strptime(date_str, '%Y%m%d').strftime('%b %d, %Y')
+            except ValueError:
+                disp = date_str
+            sc_files.append({
+                'name': Path(name).name,
+                'date': date_str,
+                'date_display': disp,
+            })
+            continue
+
+        # SOSReport: .../var/log/sa/sarNN (day number, 1–2 digits)
+        sos_m = re.search(r'(?:^|/)var/log/sa/sar(\d{1,2})$', name)
+        if sos_m:
+            day = sos_m.group(1)
+            sos_files.append({
+                'name': Path(name).name,
+                'day': day,
+                'date_display': f'Day {int(day):02d}',
+            })
+
+    if sc_files:
+        sc_files.sort(key=lambda x: x['date'])
+        result['format'] = 'supportconfig'
+        result['files'] = sc_files
+    elif sos_files:
+        sos_files.sort(key=lambda x: int(x['day']))
+        result['format'] = 'sosreport'
+        result['files'] = sos_files
+
+    return result

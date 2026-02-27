@@ -78,23 +78,36 @@ class SarAnalyzer:
         ('udp6_stats', lambda l: 'idgm6/s' in l and 'odgm6/s' in l),
     ]
     
-    def analyze(self, base_path: Path) -> Dict[str, Any]:
+    def analyze(self, base_path: Path, allowed_files: list | None = None) -> Dict[str, Any]:
         """
         Analyze SAR files from sosreport or supportconfig.
-        
+
+        Args:
+            base_path:     Root of the extracted bundle.
+            allowed_files: Optional list of bare filenames to include (e.g.
+                           ['sar20251118.xz', 'sar20251119.xz']).  Pass an
+                           empty list to skip SAR entirely.  None = no filter.
+
         Supports two formats:
         - SOSReport: /var/log/sa/sar* (uncompressed, day number in filename)
         - Supportconfig: /sar/sar* (compressed .xz or uncompressed, full date in filename)
         """
         Logger.info("Analyzing SAR data")
-        
+
         # Detect format and find SAR files
         format_type, sar_files = self._find_sar_files(base_path)
-        
+
         if not sar_files:
             Logger.debug("No SAR files found")
             return {'available': False}
-        
+
+        # Apply per-file filter when the caller supplied an explicit list
+        if allowed_files is not None:
+            sar_files = [(f, c) for f, c in sar_files if f.name in allowed_files]
+            if not sar_files:
+                Logger.debug("SAR analysis skipped: no files remain after applying filter")
+                return {'available': False}
+
         Logger.debug(f"Found {len(sar_files)} SAR files ({format_type} format)")
         
         # Get collection date for sosreport (supportconfig has date in filename/header)
