@@ -1,23 +1,14 @@
-## [0.2.25] - 2026-02-26
+## [0.2.26] - 2026-02-27
 
 ### Added
-- **Top-line Health Summary Card**: A prominent status card is now displayed at the top of the Summary tab whenever issues are detected.
-  - Shows overall status badge: **Critical**, **Warnings**, or hidden when the system is healthy (no noise on clean systems)
-  - Counts of critical and warning findings displayed inline
-  - Each finding shows category, title, detail, and a click-to-navigate link to the relevant report tab
-  - Evidence panel shows the exact **file path**, **line number**, and **full matched line** from the diagnostic bundle
+- **In-report Search Overlay**: Press `/` (or `Ctrl+Shift+F`) anywhere in a generated report to open a floating search panel.
+  - Displays a scrollable results list with `Tab → Subtab` breadcrumb location and a text snippet for each match
+  - Clicking a result navigates directly to it, activating the correct tab and subtab automatically
+  - Keyboard navigation: `Enter` / `Shift+Enter`, `↑` / `↓` arrows cycle through results; `Escape` closes
+  - Debounced input (220 ms); up to 200 results shown in the panel
+  - Search hint (`Press / to search`) displayed right-aligned in the tab bar
+  - Fully CSP-compliant — all logic in `main.js`, no inline handlers
 
-- **Rules Engine**: A file-based known-issue detection engine that scales without code changes.
-  - Loads all `*.json` rule collections from `src/rules/known_issues/` at runtime 
-  - Each rule specifies: target file paths per format (`sosreport` / `supportconfig` / `both`), a Python regex, severity, category, title template, detail, minimum match threshold, and section link
-  - Scans files line-by-line and captures up to 10 evidence lines per finding (file, line number, full text)
-  - Supports regex flags: `IGNORECASE`, `MULTILINE`, `DOTALL`
-  - Schema documented in [`src/rules/README.md`](src/rules/README.md)
-
-- **Built-in Known-Issue Collections** (`src/rules/known_issues/`): 6 collections, 24 rules covering:
-  - `kernel_issues.json` — Kernel panic, Oops, BUG assertion, call trace, tainted kernel
-  - `memory_issues.json` — OOM killer invocation, page allocation failures
-  - `storage_issues.json` — XFS/EXT4/Btrfs errors, read-only remount, I/O errors, SMART warnings
-  - `network_issues.json` — NIC link-down, network unreachable, RX/TX errors, NFS stale handle
-  - `security_issues.json` — Segfaults, brute-force auth failures, AppArmor denials, SELinux AVC denials
-  - `service_issues.json` — Service crash-loops, systemd coredumps, service start timeouts
+### Changed
+- **`docker-build.sh`**: Added `--run-fast` mode that builds with Docker layer cache (vs. `--run` which always builds `--no-cache`), then restarts the container — useful for rapid iteration on Python/template changes
+- Fixed "Failed / Inactive Services" table in System Config tab not rendering when `systemctl` reported "0 loaded units listed" (Jinja2 string-as-sequence false-positive)
