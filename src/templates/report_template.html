@@ -76,6 +76,7 @@
             <button class="tab-button" data-tab="sar">SAR</button>
             {% endif %}
             <button class="tab-button" data-tab="logs">Logs</button>
+            <span class="search-hint">Press <kbd>/</kbd> to search</span>
         </nav>
 
         <main class="content">
@@ -957,52 +958,51 @@
                     <h3>System Services</h3>
                     {% if system_config.services %}
                         {% set svc = system_config.services %}
-                        {% if svc.failed_services or svc.failed_services_entries %}
+                        {% if svc.failed_services_entries %}
                         <h4>Failed / Inactive Services</h4>
-                        {% set failed_list = svc.failed_services_entries if svc.failed_services_entries else svc.failed_services %}
-                        {% if failed_list is sequence %}
                         <table class="info-table">
-                            <tr><th class="label">Name</th><th class="value">Status</th></tr>
-                            {% for s in failed_list %}
                             <tr>
-                                <td class="label">{{ s.name or s }}</td>
-                                <td class="value">{{ s.active or s }}</td>
+                                <th class="label">Name</th>
+                                <th class="label">Active</th>
+                                <th class="label">Description</th>
+                            </tr>
+                            {% for s in svc.failed_services_entries %}
+                            <tr>
+                                <td class="label">{{ s.name or '' }}</td>
+                                <td class="value">{{ s.active or '' }}</td>
+                                <td class="value">{{ s.description or '' }}</td>
                             </tr>
                             {% endfor %}
                         </table>
-                        {% else %}
-                        <pre>{{ failed_list }}</pre>
-                        {% endif %}
+                        {% elif svc.failed_services and 'units listed' not in svc.failed_services %}
+                        <h4>Failed / Inactive Services</h4>
+                        <pre>{{ svc.failed_services }}</pre>
                         {% endif %}
 
-                        {% if svc.entries or svc.service_list %}
+                        {% if svc.entries %}
                         <h4>Service Status</h4>
-                        {% set entries = svc.entries if svc.entries else svc.service_list %}
-                        {% if entries is sequence %}
                         <table class="info-table">
                             <tr>
                                 <th class="label">Name</th>
                                 <th class="label">Description</th>
                                 <th class="label">Loaded</th>
                                 <th class="label">Active</th>
-                                <th class="label">Main PID</th>
                             </tr>
-                            {% for s in entries %}
+                            {% for s in svc.entries %}
                             <tr>
                                 <td class="label">{{ s.name or '' }}</td>
                                 <td class="value">{{ s.description or '' }}</td>
                                 <td class="value">{{ s.loaded or '' }}</td>
                                 <td class="value">{{ s.active or '' }}</td>
-                                <td class="value">{{ s.main_pid or '' }}</td>
                             </tr>
                             {% endfor %}
                         </table>
-                        {% else %}
-                        <pre>{{ entries }}</pre>
+                        {% elif svc.service_list %}
+                        <h4>Service Status</h4>
+                        <pre>{{ svc.service_list }}</pre>
                         {% endif %}
                     {% else %}
                     <p>No service data available</p>
-                    {% endif %}
                     {% endif %}
                 </div>
 
@@ -3015,6 +3015,22 @@
         <footer class="report-footer">
             <p>SOSParser v{{ version }} | Generated: {{ execution_timestamp }} UTC</p>
         </footer>
+    </div>
+
+    <!-- Report search overlay (/ or Ctrl+Shift+F to open) -->
+    <div id="report-search-overlay">
+        <div id="report-search-box">
+            <div id="report-search-header">
+                <input id="report-search-input" type="text" placeholder="Search report content…" autocomplete="off" spellcheck="false" />
+                <div id="report-search-controls">
+                    <span id="report-search-count">Type to search</span>
+                    <button class="report-search-btn" id="report-search-prev" title="Previous (Shift+Enter)">&#8593;</button>
+                    <button class="report-search-btn" id="report-search-next" title="Next (Enter)">&#8595;</button>
+                    <button class="report-search-btn" id="report-search-close" title="Close (Esc)">&times;</button>
+                </div>
+            </div>
+            <div id="report-search-results"></div>
+        </div>
     </div>
 
     <script src="scripts/main.js"></script>
