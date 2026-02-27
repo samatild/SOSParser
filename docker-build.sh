@@ -3,11 +3,16 @@
 
 set -e
 
-echo "🐳 Building SOSParser Docker Image..."
-echo ""
-
-# Build the image (no cache to ensure latest changes are included)
-docker build --no-cache -t sosparser:latest .
+if [[ "$1" == "--run-fast" ]]; then
+    echo "⚡ Building SOSParser Docker Image (with cache)..."
+    echo ""
+    docker build -t sosparser:latest .
+else
+    echo "🐳 Building SOSParser Docker Image..."
+    echo ""
+    # Build the image (no cache to ensure latest changes are included)
+    docker build --no-cache -t sosparser:latest .
+fi
 
 echo ""
 echo "✅ Build complete!"
@@ -18,8 +23,8 @@ docker images | grep sosparser
 # Check for run arguments
 if [[ "$1" == "--run" ]]; then
     echo ""
-    echo "🚀 Parameter -run detected. Restarting container..."
-    
+    echo "🚀 Parameter --run detected. Restarting container..."
+
     echo "Stopping sosparser..."
     docker stop sosparser 2>/dev/null || true
 
@@ -28,7 +33,7 @@ if [[ "$1" == "--run" ]]; then
 
     echo "Starting new container..."
     docker run -d -p 8000:8000 --name sosparser -e WEBAPP_DEBUG=1 sosparser:latest
-    
+
     echo ""
     echo "✅ Container is running!"
 elif [[ "$1" == "--run-public" ]]; then
@@ -57,6 +62,22 @@ elif [[ "$1" == "--run-public" ]]; then
     echo "   Or use the helper script:"
     echo "   ./view-audit-logs.sh live"
     echo "   ./view-audit-logs.sh stats"
+elif [[ "$1" == "--run-fast" ]]; then
+    echo ""
+    echo "⚡ Restarting container with freshly cached build..."
+
+    echo "Stopping sosparser..."
+    docker stop sosparser 2>/dev/null || true
+
+    echo "Removing sosparser..."
+    docker rm sosparser 2>/dev/null || true
+
+    echo "Starting new container..."
+    docker run -d -p 8000:8000 --name sosparser -e WEBAPP_DEBUG=1 sosparser:latest
+
+    echo ""
+    echo "✅ Container is running!"
+
 elif [[ "$1" == "--logs" ]]; then
     echo ""
     echo "📊 Showing audit logs from sosparser container..."
@@ -80,7 +101,8 @@ else
     echo "  docker-compose -f docker-compose.public.yml up -d  # Public mode with audit logging"
     echo ""
     echo "Quick test options:"
-    echo "  ./docker-build.sh --run         # Build and run in private mode with debug"
+    echo "  ./docker-build.sh --run         # Build (no cache) and run in private mode with debug"
+    echo "  ./docker-build.sh --run-fast    # Build (with cache) and run in private mode with debug"
     echo "  ./docker-build.sh --run-public  # Build and run in public mode with audit logging"
     echo "  ./docker-build.sh --logs        # View audit logs from running container"
 fi
