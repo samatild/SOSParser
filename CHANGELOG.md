@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Additional filesystem analyzers (Btrfs, XFS, ZFS)
 - Advanced security analysis modules
 
+## [0.2.28] - 2026-03-02
+
+### Security
+- **DOM-based XSS** (`webapp/static/main.js`): Replaced `innerHTML` assignment with DOM API (`createElement` / `textContent`) when rendering the version-check banner; added regex validation of version strings from the remote API response before any DOM insertion.
+- **Open Redirect** (`webapp/static/main.js`): Added same-origin validation (`/^\/[^/]/`) on `redirectUrl` received from the analysis SSE stream before assigning to `window.location.href`.
+- **Path Traversal** (`webapp/app.py`): Introduced `_is_safe_id()` regex guard and `secure_filename()` sanitization for all upload IDs and analysis tokens before they reach the filesystem. Applied in `_read_session`, `_write_session`, `_read_analysis_state`, and all affected route handlers (`upload_chunk`, `upload_cancel`, `analysis_status`, `analysis_logs`, `view_report`). Added `resolve().relative_to()` depth checks in `_get_session_file` and `_get_analysis_dir`.
+- **Path Traversal – chunk save** (`webapp/app.py`): Chunk path is now derived from the sanitized upload ID via `re.sub` rather than the session-stored `temp_dir` string; a `resolve().relative_to()` check is performed before the file is saved.
+- **Path Traversal – rmtree** (`webapp/app.py`): `_remove_dir` gained an optional `base_dir` parameter; `upload_cancel` now passes `base_dir=uploads_dir` and derives the target path from the sanitized ID instead of trusting session data.
+- **Open Redirect – report redirect** (`webapp/app.py`): Added `_sanitize_rel_path()` helper that strips traversal components and rejects characters outside `[A-Za-z0-9_./-]`; all three `url_for("view_report", ...)` call sites now route through it instead of using the raw analysis-state value.
+- **Server Information Exposure** (`webapp/app.py`): Exception details stripped from the 500 JSON response during file reassembly; a generic message is returned instead.
+- **Tar Slip / Arbitrary File Write via Archive Extraction** (`src/utils/file_operations.py`): `extractall` now filters tar members individually — any entry whose resolved destination falls outside the extraction root is skipped with a logged warning.
+
 ## [0.2.27] - 2026-02-27
 
 ### Added

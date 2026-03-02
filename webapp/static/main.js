@@ -374,18 +374,44 @@ async function checkVersion() {
     const response = await fetch('/api/version/check');
     const data = await response.json();
     
+    // Sanitize version strings — they must contain only digits, dots, and hyphens
+    const VERSION_RE = /^[0-9A-Za-z._-]{1,32}$/;
+    const safeCurrent = VERSION_RE.test(data.current) ? data.current : '';
+    const safeLatest  = VERSION_RE.test(data.latest)  ? data.latest  : '';
+
     if (data.status === 'ok') {
-      if (data.update_available) {
-        versionStatus.innerHTML = `<a href="https://github.com/samatild/SOSParser/blob/main/README.md#update" target="_blank" class="version-outdated" title="Current: v${data.current}, Latest: v${data.latest}">⚠️ Update available: v${data.latest}</a>`;
+      if (data.update_available && safeLatest) {
+        // Build link element with DOM API to avoid innerHTML XSS
+        const a = document.createElement('a');
+        a.href = 'https://github.com/samatild/SOSParser/blob/main/README.md#update';
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.className = 'version-outdated';
+        if (safeCurrent) a.title = `Current: v${safeCurrent}, Latest: v${safeLatest}`;
+        a.textContent = `\u26a0\ufe0f Update available: v${safeLatest}`;
+        versionStatus.textContent = '';
+        versionStatus.appendChild(a);
       } else {
-        versionStatus.innerHTML = `<span class="version-current">✓ Up to date</span>`;
-        versionStatus.title = `Current version: v${data.current}`;
+        const span = document.createElement('span');
+        span.className = 'version-current';
+        span.textContent = '\u2713 Up to date';
+        versionStatus.textContent = '';
+        versionStatus.appendChild(span);
+        if (safeCurrent) versionStatus.title = `Current version: v${safeCurrent}`;
       }
     } else if (data.latest === null) {
-      versionStatus.innerHTML = `<span class="version-unknown">• Version check unavailable</span>`;
+      const span = document.createElement('span');
+      span.className = 'version-unknown';
+      span.textContent = '\u2022 Version check unavailable';
+      versionStatus.textContent = '';
+      versionStatus.appendChild(span);
       versionStatus.title = 'Unable to check for updates';
     } else {
-      versionStatus.innerHTML = `<span class="version-current">✓ Up to date</span>`;
+      const span = document.createElement('span');
+      span.className = 'version-current';
+      span.textContent = '\u2713 Up to date';
+      versionStatus.textContent = '';
+      versionStatus.appendChild(span);
     }
   } catch (error) {
     versionStatus.innerHTML = `<span class="version-unknown">• Version check unavailable</span>`;
@@ -540,7 +566,8 @@ document.addEventListener('DOMContentLoaded', function() {
       try {
         const result = await currentUpload.start();
         
-        if (result.redirectUrl) {
+        // Validate redirectUrl is a same-origin relative path to prevent open redirect
+        if (result.redirectUrl && /^\/[^/]/.test(result.redirectUrl)) {
           window.location.href = result.redirectUrl;
         }
       } catch (err) {

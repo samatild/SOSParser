@@ -43,12 +43,36 @@ import subprocess
 import io
 from queue import Queue, Empty
 
+# Pattern restricting token/upload-ID values to safe characters (no path separators)
+_SAFE_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,80}$')
+
+def _is_safe_id(value: str) -> bool:
+    """Return True only when value contains characters that cannot cause path traversal."""
+    return bool(value and _SAFE_ID_RE.match(value))
+
 def _get_session_file(uploads_dir: Path, upload_id: str) -> Path:
     """Get path to session metadata file."""
-    return uploads_dir / f"_chunked_{upload_id}" / "session.json"
+    if not _is_safe_id(upload_id):
+        raise ValueError(f"Invalid upload ID: {upload_id!r}")
+    # Produce a sanitized copy (breaks taint chain — only safe chars reach the filesystem)
+    safe_upload_id = re.sub(r'[^A-Za-z0-9_-]', '', upload_id)
+    result = uploads_dir / f"_chunked_{safe_upload_id}" / "session.json"
+    # Defense-in-depth: confirm the resolved path stays within uploads_dir
+    try:
+        result.resolve().relative_to(uploads_dir.resolve())
+    except ValueError:
+        raise ValueError(f"Upload ID would escape base directory: {upload_id!r}")
+    return result
 
 def _read_session(uploads_dir: Path, upload_id: str) -> dict | None:
     """Read session from file with locking."""
+    # Guard against path traversal before touching the filesystem
+    if not _is_safe_id(upload_id):
+        return None
+    # Sanitize with secure_filename so only safe characters reach the filesystem
+    upload_id = secure_filename(upload_id)
+    if not upload_id:
+        return None
     session_file = _get_session_file(uploads_dir, upload_id)
     if not session_file.exists():
         return None
@@ -65,6 +89,13 @@ def _read_session(uploads_dir: Path, upload_id: str) -> dict | None:
 
 def _write_session(uploads_dir: Path, upload_id: str, session: dict) -> bool:
     """Write session to file with locking."""
+    # Guard against path traversal before touching the filesystem
+    if not _is_safe_id(upload_id):
+        return False
+    # Sanitize with secure_filename so only safe characters reach the filesystem
+    upload_id = secure_filename(upload_id)
+    if not upload_id:
+        return False
     session_file = _get_session_file(uploads_dir, upload_id)
     try:
         session_file.parent.mkdir(parents=True, exist_ok=True)
@@ -94,7 +125,17 @@ def _delete_session(uploads_dir: Path, upload_id: str) -> dict | None:
 # Analysis state storage
 def _get_analysis_dir(outputs_dir: Path, token: str) -> Path:
     """Get path to analysis state directory."""
-    return outputs_dir / token
+    if not _is_safe_id(token):
+        raise ValueError(f"Invalid token: {token!r}")
+    # Produce a sanitized copy (breaks taint chain — only safe chars reach the filesystem)
+    safe_token = re.sub(r'[^A-Za-z0-9_-]', '', token)
+    result = outputs_dir / safe_token
+    # Defense-in-depth: confirm the resolved path stays within outputs_dir
+    try:
+        result.resolve().relative_to(outputs_dir.resolve())
+    except ValueError:
+        raise ValueError(f"Token would escape base directory: {token!r}")
+    return result
 
 def _get_analysis_state_file(outputs_dir: Path, token: str) -> Path:
     """Get path to analysis state file."""
@@ -106,6 +147,13 @@ def _get_analysis_log_file(outputs_dir: Path, token: str) -> Path:
 
 def _read_analysis_state(outputs_dir: Path, token: str) -> dict | None:
     """Read analysis state from file."""
+    # Guard against path traversal before touching the filesystem
+    if not _is_safe_id(token):
+        return None
+    # Sanitize with secure_filename so only safe characters reach the filesystem
+    token = secure_filename(token)
+    if not token:
+        return None
     state_file = _get_analysis_state_file(outputs_dir, token)
     if not state_file.exists():
         return None
@@ -218,16 +266,41 @@ def _cleanup_dir_contents(target_dir: Path) -> None:
         pass
 
 
-def _remove_dir(target_dir: Path) -> None:
-    """Remove entire directory"""
+def _remove_dir(target_dir: Path, base_dir: Path | None = None) -> None:
+    """Remove entire directory, optionally confirming it stays within base_dir."""
     try:
+        if base_dir is not None:
+            target_dir.resolve().relative_to(base_dir.resolve())
         if target_dir.exists():
             shutil.rmtree(target_dir, ignore_errors=True)
-    except Exception:
+    except (ValueError, Exception):
         pass
 
 
 _SCRIPT_TAG_PATTERN = re.compile(r"<script\b(?![^>]*\snonce=)([^>]*)>", re.IGNORECASE)
+
+# Allowed characters in a relative report path: alphanumerics, underscores, hyphens, dots, forward slashes
+_SAFE_PATH_COMPONENT_RE = re.compile(r'^[A-Za-z0-9_./-]+$')
+
+def _sanitize_rel_path(rel_path: str) -> str:
+    """Sanitize a relative report path to block traversal and unexpected characters.
+
+    Returns a clean path string, or 'report.html' if the path is invalid.
+    """
+    if not rel_path:
+        return "report.html"
+    # Reject absolute paths and any component that is '..'
+    if rel_path.startswith("/") or rel_path.startswith("\\"):
+        return "report.html"
+    # Normalise separators and split
+    parts = Path(rel_path).parts
+    for part in parts:
+        if part == ".." or part == ".":
+            return "report.html"
+    # Reject characters outside the safe set
+    if not _SAFE_PATH_COMPONENT_RE.match(rel_path):
+        return "report.html"
+    return rel_path
 
 
 def _inject_script_nonce(html: str, nonce: str) -> str:
@@ -418,10 +491,10 @@ def create_app() -> Flask:
 
         # Redirect to served report
         try:
-            rel_path = str(Path(output_report_path).relative_to(output_token_dir))
+            raw_rel = str(Path(output_report_path).relative_to(output_token_dir))
         except Exception:
-            rel_path = "report.html"
-
+            raw_rel = "report.html"
+        rel_path = _sanitize_rel_path(raw_rel)
         redirect_url = url_for("view_report", token=token, path=rel_path)
         return redirect(redirect_url)
 
@@ -535,12 +608,16 @@ def create_app() -> Flask:
             totalChunks: Total expected chunks
             complete: Whether all chunks have been received
         """
-        upload_id = request.form.get("uploadId")
+        upload_id = request.form.get("uploadId", "")
         chunk_index = request.form.get("chunkIndex")
         chunk_file = request.files.get("chunk")
         
         if not upload_id or chunk_index is None or not chunk_file:
             return jsonify({"error": "Missing uploadId, chunkIndex, or chunk data"}), 400
+        
+        # Reject IDs that could cause path traversal before touching the filesystem
+        if not _is_safe_id(upload_id):
+            return jsonify({"error": "Invalid uploadId"}), 400
         
         try:
             chunk_index = int(chunk_index)
@@ -558,8 +635,14 @@ def create_app() -> Flask:
         if chunk_index < 0 or chunk_index >= total_chunks:
             return jsonify({"error": f"Invalid chunkIndex. Expected 0-{total_chunks-1}"}), 400
         
-        # Save chunk to temp directory
-        chunk_path = Path(temp_dir) / f"chunk_{chunk_index:06d}"
+        # Derive chunk path using sanitized upload_id — breaks taint chain
+        safe_upload_id = re.sub(r'[^A-Za-z0-9_-]', '', upload_id)
+        chunk_path = uploads_dir / f"_chunked_{safe_upload_id}" / f"chunk_{chunk_index:06d}"
+        # Defense-in-depth: confirm resolved path stays within uploads_dir
+        try:
+            chunk_path.resolve().relative_to(uploads_dir.resolve())
+        except ValueError:
+            return jsonify({"error": "Invalid chunk path"}), 400
         chunk_file.save(str(chunk_path))
         
         # Update session with new chunk
@@ -735,7 +818,7 @@ def create_app() -> Flask:
             _remove_dir(upload_token_dir)
             _append_log(outputs_dir, token, f"ERROR: Failed to reassemble file: {e}")
             _write_analysis_state(outputs_dir, token, {"status": "error", "error": str(e)})
-            return jsonify({"error": f"Failed to reassemble file: {e}"}), 500
+            return jsonify({"error": "Failed to reassemble file. Please try again."}), 500
         finally:
             # Clean up temp chunks directory
             _remove_dir(temp_dir)
@@ -846,6 +929,9 @@ def create_app() -> Flask:
     @app.get("/api/analysis/<token>/status")
     def analysis_status(token: str):
         """Get the current status of an analysis."""
+        if not _is_safe_id(token):
+            return jsonify({"error": "Invalid token"}), 400
+        token = secure_filename(token)  # Sanitize before any filesystem use
         outputs_dir = Path(app.config["OUTPUT_FOLDER"])
         state = _read_analysis_state(outputs_dir, token)
         
@@ -855,7 +941,7 @@ def create_app() -> Flask:
         response = {"status": state.get("status", "unknown")}
         
         if state.get("status") == "complete":
-            rel_path = state.get("report_path", "report.html")
+            rel_path = _sanitize_rel_path(state.get("report_path", "report.html"))
             response["redirectUrl"] = url_for("view_report", token=token, path=rel_path)
         elif state.get("status") == "error":
             response["error"] = state.get("error", "Unknown error")
@@ -865,6 +951,9 @@ def create_app() -> Flask:
     @app.get("/api/analysis/<token>/logs")
     def analysis_logs(token: str):
         """Stream analysis logs via Server-Sent Events."""
+        if not _is_safe_id(token):
+            return jsonify({"error": "Invalid token"}), 400
+        token = secure_filename(token)  # Sanitize before any filesystem use
         outputs_dir = Path(app.config["OUTPUT_FOLDER"])
         log_file = _get_analysis_log_file(outputs_dir, token)
         
@@ -877,6 +966,8 @@ def create_app() -> Flask:
                 
                 # Read new log lines
                 try:
+                    # Verify log file path stays within outputs_dir before opening
+                    log_file.resolve().relative_to(outputs_dir.resolve())
                     if log_file.exists():
                         with open(log_file, "r") as f:
                             f.seek(last_position)
@@ -894,7 +985,7 @@ def create_app() -> Flask:
                 # Check if analysis is complete
                 if state and state.get("status") in ("complete", "error"):
                     if state.get("status") == "complete":
-                        rel_path = state.get("report_path", "report.html")
+                        rel_path = _sanitize_rel_path(state.get("report_path", "report.html"))
                         redirect_url = url_for("view_report", token=token, path=rel_path)
                         yield f"data: {json.dumps({'type': 'complete', 'redirectUrl': redirect_url})}\n\n"
                     else:
@@ -922,11 +1013,18 @@ def create_app() -> Flask:
     @app.delete("/api/upload/<upload_id>")
     def upload_cancel(upload_id: str):
         """Cancel an in-progress upload and clean up."""
+        if not _is_safe_id(upload_id):
+            return jsonify({"status": "ok"})  # Silently ignore invalid IDs
+        upload_id = secure_filename(upload_id)  # Sanitize before any filesystem use
+        if not upload_id:
+            return jsonify({"status": "ok"})
         uploads_dir = Path(app.config["UPLOAD_FOLDER"])
         session = _delete_session(uploads_dir, upload_id)
         
-        if session and session.get("temp_dir"):
-            _remove_dir(Path(session["temp_dir"]))
+        if session:
+            # Derive temp_dir from sanitized upload_id — do not trust session contents
+            temp_dir = uploads_dir / f"_chunked_{upload_id}"
+            _remove_dir(temp_dir, base_dir=uploads_dir)
         
         return jsonify({"status": "ok"})
 
@@ -1011,6 +1109,9 @@ def create_app() -> Flask:
     @app.get("/view/<token>")
     def view_report(token: str):
         """View report and cleanup after delivery"""
+        if not _is_safe_id(token):
+            abort(404)
+        token = secure_filename(token)  # Sanitize before any filesystem use
         rel_path = request.args.get("path", "report.html")
         base = (Path(app.config["OUTPUT_FOLDER"]) / secure_filename(token)).resolve()
         if not base.exists():

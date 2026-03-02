@@ -19,11 +19,22 @@ def extract_tarball(tarball_path: Path, extract_to: Path) -> Path:
     
     try:
         with tarfile.open(tarball_path, 'r:*') as tar:
-            # Extract all files
-            tar.extractall(path=extract_to)
-            
+            # Filter members to prevent Tar Slip / path traversal attacks
+            resolved_base = extract_to.resolve()
+            safe_members = []
+            for member in tar.getmembers():
+                member_dest = (resolved_base / member.name).resolve()
+                try:
+                    member_dest.relative_to(resolved_base)
+                    safe_members.append(member)
+                except ValueError:
+                    Logger.error(f"Skipping potentially malicious tar entry: {member.name!r}")
+
+            # Extract only the validated members
+            tar.extractall(path=extract_to, members=safe_members)
+
             # Find the root sosreport directory
-            members = tar.getmembers()
+            members = safe_members
             if members:
                 # Get the top-level directory name
                 root_name = members[0].name.split('/')[0]
