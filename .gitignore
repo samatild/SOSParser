@@ -108,3 +108,4 @@ data/
 
 # GitHub Copilot workspace instructions (local only — not for repo consumers)
 .github/copilot-instructions.md
+.github/instructions/snyk_rules.instructions.md
