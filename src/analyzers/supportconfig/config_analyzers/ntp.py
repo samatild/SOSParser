@@ -38,6 +38,7 @@ class NTPConfigAnalyzer:
             'chronyc_tracking': '',
             'chronyc_activity': '',
             'timedatectl_status': '',
+            'timezone': '',
         }
 
         content = self.parser.read_file('ntp.txt')
@@ -87,7 +88,9 @@ class NTPConfigAnalyzer:
                     ntp_info['timedatectl_status'] = output
                     for line in output.split('\n'):
                         line = line.strip()
-                        if line.startswith('NTP service:'):
+                        if line.startswith('Time zone:'):
+                            ntp_info['timezone'] = line.split(':', 1)[1].strip()
+                        elif line.startswith('NTP service:'):
                             ntp_info['ntp_service'] = line.split(':', 1)[1].strip()
                         elif line.startswith('RTC in local TZ:'):
                             ntp_info['rtc_local_tz'] = line.split(':', 1)[1].strip()

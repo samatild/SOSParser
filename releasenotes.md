@@ -1,13 +1,7 @@
-## [0.2.27] - 2026-02-27
+## [0.3.0] - 2026-03-03
 
 ### Added
-- **SAR Day Selector**: After uploading a bundle, if SAR files are detected the upload overlay now shows an interactive day-picker before analysis starts.
-  - Peeks inside the tarball without full extraction (`peek_sar_files`) to list SAR filenames and human-readable dates
-  - All days are pre-checked; user can deselect individual days or use "Select all" / "Deselect all"
-  - Clicking "Start Analysis" passes only the chosen filenames through the full pipeline (`run_analysis` → `SOSReportAnalyzer` → `SarAnalyzer.analyze(allowed_files=[...])`)
-  - An empty selection skips SAR entirely — prevents runaway analysis times on large supportconfig bundles with many SAR files
-  - New Flask endpoint `/api/upload/start-analysis` resumes the background analysis thread after the selection step
-
-### Changed
-- Search overlay now also indexes `h2`–`h5` section headings and `th` table headers, making titles like "Mount Points" and paths like `/etc/fstab` searchable
-- Removed the "Analyze SAR data" checkbox from the upload form — the SAR selector screen is the right place for that decision
+- **System Timezone in Report Summary Card**: The system timezone is now displayed in the System Information card at the top of every report, for both sosreport and supportconfig formats.
+  - **sosreport**: Extracted using a 3-step fallback chain — `sos_commands/systemd/timedatectl` (`Time zone:` line, most reliable), `/etc/timezone` plain-text file (Debian/Ubuntu), `/etc/localtime` symlink resolution (last resort)
+  - **supportconfig**: Extracted from the `timedatectl` command block inside `ntp.txt` (`Time zone:` field)
+  - Timezone is exposed at the top level of `system_config` for both formats and conditionally rendered in the template

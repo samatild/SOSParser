@@ -95,17 +95,41 @@ class SystemConfigAnalyzer:
         if hostname_file.exists():
             data['hostname'] = hostname_file.read_text().strip()
         
-        # Timezone
-        timezone_file = base_path / 'etc' / 'localtime'
-        if timezone_file.exists():
+        # Timezone — try multiple sources in order of reliability
+        # 1. timedatectl output (most reliable: "Time zone: America/New_York (EDT, -0400)")
+        timedatectl_file = base_path / 'sos_commands' / 'systemd' / 'timedatectl'
+        if not timedatectl_file.exists():
+            timedatectl_file = base_path / 'sos_commands' / 'date' / 'timedatectl'
+        if timedatectl_file.exists():
             try:
-                # Follow symlink to get timezone
-                tz_path = timezone_file.resolve()
-                tz_str = str(tz_path)
-                if 'zoneinfo/' in tz_str:
-                    data['timezone'] = tz_str.split('zoneinfo/')[-1]
+                for line in timedatectl_file.read_text(errors='replace').splitlines():
+                    line = line.strip()
+                    if line.startswith('Time zone:'):
+                        data['timezone'] = line.split(':', 1)[1].strip()
+                        break
             except Exception:
                 pass
+        # 2. /etc/timezone plain-text file (Debian/Ubuntu)
+        if not data.get('timezone'):
+            etc_timezone = base_path / 'etc' / 'timezone'
+            if etc_timezone.exists():
+                try:
+                    tz_val = etc_timezone.read_text(errors='replace').strip()
+                    if tz_val:
+                        data['timezone'] = tz_val
+                except Exception:
+                    pass
+        # 3. /etc/localtime symlink (resolve within extracted tree)
+        if not data.get('timezone'):
+            localtime_file = base_path / 'etc' / 'localtime'
+            if localtime_file.exists():
+                try:
+                    tz_path = localtime_file.resolve()
+                    tz_str = str(tz_path)
+                    if 'zoneinfo/' in tz_str:
+                        data['timezone'] = tz_str.split('zoneinfo/')[-1]
+                except Exception:
+                    pass
         
         # Locale
         locale_file = base_path / 'etc' / 'locale.conf'

@@ -51,8 +51,8 @@ ENV WEBAPP_PORT=8000
 ENV PUBLIC_MODE=false
 # Log parsing limits (lines to read from end of each log file)
 # Default: 1000 lines, recommended max: 5000 for browser performance
-ENV LOG_LINES_DEFAULT=1000
-ENV LOG_LINES_PRIMARY=1000
+ENV LOG_LINES_DEFAULT=3000
+ENV LOG_LINES_PRIMARY=3000
 ENV LOG_LINES_SECONDARY=500
 
 # Expose port

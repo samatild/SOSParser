@@ -173,6 +173,7 @@ class SOSReportAnalyzer:
         Logger.memory("System config analysis complete")
         
         system_config = {
+            'timezone': config_data.get('timezone', ''),
             'general': config_data.get('general', {}),
             'boot': config_data.get('boot', {}),
             'authentication': config_data.get('authentication', {}),
@@ -287,8 +288,10 @@ class SOSReportAnalyzer:
                 
                 # Analyze system configuration
                 Logger.debug("Analyzing system configuration.")
+                _sc_general = self.system_config_analyzer.analyze_general(extracted_dir)
                 system_config = {
-                    'general': self.system_config_analyzer.analyze_general(extracted_dir),
+                    'timezone': _sc_general.get('timezone', ''),
+                    'general': _sc_general,
                     'boot': self.system_config_analyzer.analyze_boot(extracted_dir),
                     'authentication': self.system_config_analyzer.analyze_authentication(extracted_dir),
                     'ssh_runtime': self.system_config_analyzer.analyze_ssh_runtime(extracted_dir),
