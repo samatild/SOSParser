@@ -206,6 +206,12 @@
                                 <td class="value">{{ summary.system_load.loadavg }}</td>
                             </tr>
                             {% endif %}
+                            {% if system_config.timezone %}
+                            <tr>
+                                <td class="label">Timezone</td>
+                                <td class="value">{{ system_config.timezone }}</td>
+                            </tr>
+                            {% endif %}
                             {% if health_summary and health_summary.primary_ips %}
                             <tr>
                                 <td class="label">Primary IPs</td>

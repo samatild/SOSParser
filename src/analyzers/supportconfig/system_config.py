@@ -78,6 +78,7 @@ class SupportconfigSystemConfig:
         Logger.memory("  SysConfig: ntp done")
         
         return {
+            'timezone': ntp.get('timezone', ''),
             'general': general,
             'boot': boot,
             'authentication': authentication,
