@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Additional filesystem analyzers (Btrfs, XFS, ZFS)
 - Advanced security analysis modules
 
+## [0.3.0] - 2026-03-03
+
+### Added
+- **System Timezone in Report Summary Card**: The system timezone is now displayed in the System Information card at the top of every report, for both sosreport and supportconfig formats.
+  - **sosreport**: Extracted using a 3-step fallback chain — `sos_commands/systemd/timedatectl` (`Time zone:` line, most reliable), `/etc/timezone` plain-text file (Debian/Ubuntu), `/etc/localtime` symlink resolution (last resort)
+  - **supportconfig**: Extracted from the `timedatectl` command block inside `ntp.txt` (`Time zone:` field)
+  - Timezone is exposed at the top level of `system_config` for both formats and conditionally rendered in the template
+
 ## [0.2.28] - 2026-03-02
 
 ### Security
@@ -636,9 +644,10 @@ Future releases will include:
 
 ---
 
-[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.2.24...HEAD
-[0.2.24]: https://github.com/samatild/SOSParser/releases/tag/v0.2.24
-[0.2.23]: https://github.com/samatild/SOSParser/compare/v0.2.23...v0.2.24
+[Unreleased]: https://github.com/samatild/SOSParser/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/samatild/SOSParser/compare/v0.2.28...v0.3.0
+[0.2.28]: https://github.com/samatild/SOSParser/compare/v0.2.27...v0.2.28
+[0.2.27]: https://github.com/samatild/SOSParser/compare/v0.2.26...v0.2.27
 [0.2.21]: https://github.com/samatild/SOSParser/releases/tag/v0.2.21
 [0.2.20]: https://github.com/samatild/SOSParser/compare/v0.2.20...v0.2.21
 [0.2.19]: https://github.com/samatild/SOSParser/compare/v0.2.19...v0.2.20
