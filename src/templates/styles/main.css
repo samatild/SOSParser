@@ -1,31 +1,143 @@
-/* SOSParser Report - Ultra Dark Condensed Theme */
+/* SOSParser Report - Tokyo Night Theme (Dark + Light) */
 
 :root[data-theme="dark"] {
-  --bg-primary: #050810;
-  --bg-secondary: #0a0e17;
-  --bg-tertiary: #0f141f;
-  --bg-hover: #141925;
-  
-  --accent-primary: #00d9ff;
-  --accent-secondary: #ff9500;
-  --accent-tertiary: #00b8d4;
-  
-  --text-primary: #e8eaed;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
-  
-  --border-color: #1f2937;
-  --border-accent: #00d9ff;
-  
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --info: #3b82f6;
-  
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.7);
-  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.8);
+  --bg-primary: #1a1b26;    /* Night background */
+  --bg-secondary: #16161e;  /* Darker panel/header */
+  --bg-tertiary: #24283b;   /* Storm / surfaces */
+  --bg-hover: #2f3549;      /* Hover highlight */
+
+  --accent-primary: #7aa2f7;   /* Blue */
+  --accent-secondary: #e0af68; /* Yellow */
+  --accent-tertiary: #7dcfff;  /* Cyan */
+
+  --text-primary: #c0caf5;    /* Foreground */
+  --text-secondary: #a9b1d6;  /* Muted foreground */
+  --text-muted: #565f89;      /* Comments */
+
+  --border-color: #2f3549;
+  --border-accent: #7aa2f7;
+
+  --success: #9ece6a;
+  --warning: #e0af68;
+  --error: #f7768e;
+  --info: #7aa2f7;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.7);
 }
+
+:root[data-theme="light"] {
+  --bg-primary: #e1e2e7;    /* Editor background */
+  --bg-secondary: #d5d6db;  /* Panel/header */
+  --bg-tertiary: #c9cad5;   /* Surfaces */
+  --bg-hover: #b8bdd0;      /* Hover */
+
+  --accent-primary: #2959aa;   /* Blue */
+  --accent-secondary: #8f5e15; /* Yellow */
+  --accent-tertiary: #006c86;  /* Cyan */
+
+  --text-primary: #343b58;    /* Foreground */
+  --text-secondary: #40434f;  /* Muted */
+  --text-muted: #9699a3;      /* Comments */
+
+  --border-color: #c4c6d0;
+  --border-accent: #2959aa;
+
+  --success: #385f0d;
+  --warning: #8f5e15;
+  --error: #8c4351;
+  --info: #2959aa;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.16);
+}
+
+/* ── Light theme overrides for hardcoded hex values ── */
+[data-theme="light"] .header-title h1 { color: #343b58; }
+
+[data-theme="light"] .eol-supported {
+  background: rgba(56, 95, 13, 0.1); color: #385f0d;
+  border-color: rgba(56, 95, 13, 0.3);
+}
+[data-theme="light"] .eol-supported-lts {
+  background: rgba(56, 95, 13, 0.15); color: #2d4f0a;
+  border-color: rgba(56, 95, 13, 0.4);
+}
+[data-theme="light"] .eol-unsupported {
+  background: rgba(140, 67, 81, 0.1); color: #8c4351;
+  border-color: rgba(140, 67, 81, 0.3);
+}
+[data-theme="light"] .eol-esm {
+  background: rgba(143, 94, 21, 0.1); color: #8f5e15;
+  border-color: rgba(143, 94, 21, 0.3);
+}
+[data-theme="light"] .eol-unknown {
+  background: rgba(150, 153, 163, 0.2); color: #6c727e;
+  border-color: rgba(150, 153, 163, 0.4);
+}
+[data-theme="light"] .eol-error {
+  background: rgba(150, 153, 163, 0.12); color: #9699a3;
+  border-color: rgba(150, 153, 163, 0.25);
+}
+[data-theme="light"] .eol-loading {
+  background: rgba(41, 89, 170, 0.1); color: #2959aa;
+  border-color: rgba(41, 89, 170, 0.25);
+}
+
+[data-theme="light"] .health-badge-critical {
+  background: rgba(140, 67, 81, 0.1); color: #8c4351;
+  border-color: rgba(140, 67, 81, 0.3);
+}
+[data-theme="light"] .health-badge-warning {
+  background: rgba(143, 94, 21, 0.1); color: #8f5e15;
+  border-color: rgba(143, 94, 21, 0.3);
+}
+[data-theme="light"] .health-badge-ok {
+  background: rgba(56, 95, 13, 0.1); color: #385f0d;
+  border-color: rgba(56, 95, 13, 0.3);
+}
+
+[data-theme="light"] .health-count-critical { color: #8c4351; }
+[data-theme="light"] .health-count-warning  { color: #8f5e15; }
+
+[data-theme="light"] .health-finding-critical .health-finding-icon { color: #8c4351; }
+[data-theme="light"] .health-finding-warning  .health-finding-icon { color: #8f5e15; }
+
+/* ── Theme toggle button ── */
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--bg-hover);
+}
+
+.theme-toggle svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* Show sun in dark mode (→ switch to light), moon in light mode (→ switch to dark) */
+.theme-toggle .icon-sun  { display: none; }
+.theme-toggle .icon-moon { display: none; }
+[data-theme="dark"]  .theme-toggle .icon-sun  { display: block; }
+[data-theme="light"] .theme-toggle .icon-moon { display: block; }
 
 * {
   margin: 0;
@@ -107,7 +219,7 @@ body {
 
 .header-title h1 {
   font-size: 1.5rem;
-  color: #ffffff;
+  color: #c0caf5;
   margin-bottom: 0.5rem;
   font-weight: 700;
 }
@@ -684,46 +796,46 @@ a.eol-badge:hover {
 }
 
 .eol-supported {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: rgba(158, 206, 106, 0.15);
+  color: #9ece6a;
+  border: 1px solid rgba(158, 206, 106, 0.35);
 }
 
 .eol-supported-lts {
-  background: rgba(16, 185, 129, 0.25);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.5);
+  background: rgba(158, 206, 106, 0.2);
+  color: #9ece6a;
+  border: 1px solid rgba(158, 206, 106, 0.45);
 }
 
 .eol-unsupported {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(247, 118, 142, 0.15);
+  color: #f7768e;
+  border: 1px solid rgba(247, 118, 142, 0.35);
 }
 
 .eol-esm {
-  background: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: rgba(224, 175, 104, 0.15);
+  color: #e0af68;
+  border: 1px solid rgba(224, 175, 104, 0.35);
 }
 
 .eol-unknown {
-  background: rgba(107, 114, 128, 0.2);
-  color: #9ca3af;
-  border: 1px solid rgba(107, 114, 128, 0.4);
+  background: rgba(86, 95, 137, 0.2);
+  color: #a9b1d6;
+  border: 1px solid rgba(86, 95, 137, 0.4);
 }
 
 .eol-error {
-  background: rgba(107, 114, 128, 0.15);
-  color: #6b7280;
-  border: 1px solid rgba(107, 114, 128, 0.3);
+  background: rgba(86, 95, 137, 0.15);
+  color: #565f89;
+  border: 1px solid rgba(86, 95, 137, 0.3);
   font-style: italic;
 }
 
 .eol-loading {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(122, 162, 247, 0.15);
+  color: #7aa2f7;
+  border: 1px solid rgba(122, 162, 247, 0.3);
   animation: eol-pulse 1.5s ease-in-out infinite;
 }
 
@@ -907,21 +1019,21 @@ a.eol-badge:hover {
 }
 
 .health-badge-critical {
-  background: rgba(239, 68, 68, 0.18);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(247, 118, 142, 0.15);
+  color: #f7768e;
+  border: 1px solid rgba(247, 118, 142, 0.35);
 }
 
 .health-badge-warning {
-  background: rgba(245, 158, 11, 0.18);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: rgba(224, 175, 104, 0.15);
+  color: #e0af68;
+  border: 1px solid rgba(224, 175, 104, 0.35);
 }
 
 .health-badge-ok {
-  background: rgba(16, 185, 129, 0.18);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: rgba(158, 206, 106, 0.15);
+  color: #9ece6a;
+  border: 1px solid rgba(158, 206, 106, 0.35);
 }
 
 .health-icon {
@@ -940,8 +1052,8 @@ a.eol-badge:hover {
   font-weight: 600;
 }
 
-.health-count-critical { color: #ef4444; }
-.health-count-warning { color: #f59e0b; }
+.health-count-critical { color: #f7768e; }
+.health-count-warning { color: #e0af68; }
 .health-count-ok { color: var(--text-muted); }
 
 /* Findings list */
@@ -990,8 +1102,8 @@ a.eol-badge:hover {
   line-height: 1;
 }
 
-.health-finding-critical .health-finding-icon { color: #ef4444; }
-.health-finding-warning .health-finding-icon { color: #f59e0b; }
+.health-finding-critical .health-finding-icon { color: #f7768e; }
+.health-finding-warning .health-finding-icon { color: #e0af68; }
 
 .health-finding-category {
   flex-shrink: 0;
