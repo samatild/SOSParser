@@ -377,6 +377,42 @@ class SupportconfigParser:
         except Exception:
             return None
     
+    def read_file_content(self, filename: str, max_bytes: int = None) -> Optional[str]:
+        """
+        Read a supportconfig .txt file in its entirety with a byte-based safety cap.
+        
+        For files within the cap, returns full content. For larger files, reads
+        the last max_bytes from the end and prepends a truncation notice.
+        
+        Args:
+            filename: Name of the .txt file (e.g., 'messages.txt')
+            max_bytes: Maximum bytes to read (default 10MB)
+            
+        Returns:
+            File contents or None if file doesn't exist
+        """
+        if max_bytes is None:
+            max_bytes = int(os.environ.get('MAX_LOG_FILE_BYTES', str(10 * 1024 * 1024)))
+        
+        file_path = self.root_path / filename
+        try:
+            file_size = file_path.stat().st_size
+            
+            if file_size <= max_bytes:
+                return file_path.read_text(encoding='utf-8', errors='ignore')
+            
+            # File exceeds cap — read last max_bytes from end
+            with open(file_path, 'rb') as f:
+                f.seek(file_size - max_bytes)
+                f.readline()  # Skip partial first line
+                content = f.read().decode('utf-8', errors='ignore')
+            
+            total_mb = file_size / (1024 * 1024)
+            cap_mb = max_bytes / (1024 * 1024)
+            return f"[... File truncated: showing last {cap_mb:.0f}MB of {total_mb:.1f}MB total ...]\n{content}"
+        except Exception:
+            return None
+    
     def extract_sections(self, content: str) -> List[Dict[str, str]]:
         """
         Extract sections from supportconfig file content.

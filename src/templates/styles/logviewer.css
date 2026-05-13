@@ -190,10 +190,17 @@
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.75rem;
   line-height: 1.5;
+  position: relative;
 }
 
 .logviewer-content.nowrap .logviewer-line-content {
   white-space: nowrap;
+}
+
+/* Virtual scroll spacer — sets total scrollable height */
+.logviewer-spacer {
+  width: 1px;
+  pointer-events: none;
 }
 
 .logviewer-lines {
@@ -205,6 +212,7 @@
   padding: 0.25rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.02);
   transition: background 0.15s;
+  overflow: hidden;
 }
 
 .logviewer-line:hover {
