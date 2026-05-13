@@ -19,6 +19,7 @@ from analyzers.cloud.cloud import CloudAnalyzer
 from analyzers.updates.updates import UpdatesAnalyzer
 from analyzers.process.process import ProcessAnalyzer
 from analyzers.sar.sar import SarAnalyzer
+from analyzers.cluster.cluster import ClusterAnalyzer
 from analyzers.scenarios.scenario_analyzer import BaseScenarioAnalyzer
 
 # Supportconfig analyzers
@@ -30,6 +31,7 @@ from analyzers.supportconfig.cloud import SupportconfigCloud
 from analyzers.supportconfig.logs import SupportconfigLogs
 from analyzers.supportconfig.updates import SupportconfigUpdates
 from analyzers.supportconfig.process import SupportconfigProcess
+from analyzers.supportconfig.cluster import SupportconfigClusterAnalyzer
 from analyzers.supportconfig.parser import SupportconfigParser
 
 from analyzers.health_summary import compute_health_summary
@@ -97,6 +99,7 @@ class SOSReportAnalyzer:
         self.updates_analyzer = UpdatesAnalyzer()
         self.process_analyzer = ProcessAnalyzer()
         self.sar_analyzer = SarAnalyzer()
+        self.cluster_analyzer = ClusterAnalyzer()
         Logger.debug("Analyzers initialized.")
         
         # Initialize scenario analyzers
@@ -373,6 +376,10 @@ class SOSReportAnalyzer:
                 Logger.debug("Analyzing SAR data.")
                 sar = self.sar_analyzer.analyze(extracted_dir, allowed_files=self.allowed_sar_files)
                 
+                # Analyze cluster (Pacemaker/Corosync)
+                Logger.debug("Analyzing cluster information.")
+                cluster = self.cluster_analyzer.analyze(extracted_dir)
+                
             elif format_type == 'supportconfig':
                 Logger.debug("Using Supportconfig analyzers")
                 (summary, system_config, filesystem, network, logs, cloud, updates, processes, sar) = self.analyze_supportconfig(extracted_dir)
@@ -387,6 +394,11 @@ class SOSReportAnalyzer:
                 disk_info = summary['disk_info']
                 system_load = summary['system_load']
                 dmi_info = summary['dmi_info']
+
+                # Analyze cluster (Pacemaker/Corosync)
+                Logger.debug("Analyzing cluster information.")
+                scc_cluster_analyzer = SupportconfigClusterAnalyzer()
+                cluster = scc_cluster_analyzer.analyze(extracted_dir)
 
             # Analyze scenarios (optional, can be disabled)
             Logger.debug("Analyzing scenarios.")
@@ -470,6 +482,7 @@ class SOSReportAnalyzer:
                 processes=processes,
                 sar=sar,
                 health_summary=health_summary,
+                cluster=cluster,
             )
             Logger.memory("After prepare_report_data")
             

@@ -69,6 +69,7 @@ def prepare_report_data(
     processes: Dict[str, Any] = None,
     sar: Dict[str, Any] = None,
     health_summary: Dict[str, Any] = None,
+    cluster: Dict[str, Any] = None,
 ) -> Dict[str, Any]:
     """
     Prepare the report data dictionary.
@@ -123,6 +124,7 @@ def prepare_report_data(
         'sar': sar or {'available': False},
         'scenarios': format_scenario_results(scenario_results),
         'health_summary': health_summary or {},
+        'cluster': cluster if cluster and cluster.get('available') else None,
     }
 
 

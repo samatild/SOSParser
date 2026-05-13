@@ -90,6 +90,9 @@
             {% if sar and sar.available %}
             <button class="tab-button" data-tab="sar">SAR</button>
             {% endif %}
+            {% if cluster %}
+            <button class="tab-button" data-tab="cluster">Cluster</button>
+            {% endif %}
             <button class="tab-button" data-tab="logs">Logs</button>
             <span class="search-hint">Press <kbd>/</kbd> to search</span>
         </nav>
@@ -2850,6 +2853,351 @@
                         new SarViewer('sar-container', sarData);
                     }
                 </script>
+            </section>
+            {% endif %}
+
+            <!-- Cluster Tab -->
+            {% if cluster %}
+            <section id="cluster" class="tab-content">
+                <h2>Cluster Configuration</h2>
+
+                <nav class="subtabs">
+                    <button class="subtab-button active" data-subtab="cluster-overview">Overview</button>
+                    <button class="subtab-button" data-subtab="cluster-resources">Resources</button>
+                    <button class="subtab-button" data-subtab="cluster-fencing">Fencing</button>
+                    <button class="subtab-button" data-subtab="cluster-corosync">Corosync</button>
+                    {% if cluster.logs and (cluster.logs.events or cluster.logs.journal or cluster.logs.analysis or cluster.logs.pacemaker) %}
+                    <button class="subtab-button" data-subtab="cluster-logs">Logs</button>
+                    {% endif %}
+                </nav>
+
+                <!-- Overview Subtab -->
+                <div id="cluster-overview" class="subtab-content active">
+                    <h3>Cluster Overview</h3>
+
+                    {% if cluster.warnings %}
+                    <div class="cluster-warnings">
+                        <h4>⚠ Warnings</h4>
+                        <pre>{{ cluster.warnings }}</pre>
+                    </div>
+                    {% endif %}
+
+                    <div class="cluster-info-grid">
+                        <div class="cluster-info-card">
+                            <h4>Cluster Summary</h4>
+                            <table class="info-table">
+                                <tr><td>Cluster Name</td><td><strong>{{ cluster.cluster_name }}</strong></td></tr>
+                                <tr><td>Stack</td><td>{{ cluster.stack }}</td></tr>
+                                <tr><td>Pacemaker Version</td><td>{{ cluster.pacemaker_version }}</td></tr>
+                                <tr><td>Designated Controller</td><td>{{ cluster.dc_node }}</td></tr>
+                                <tr><td>Nodes Configured</td><td>{{ cluster.nodes_configured }}</td></tr>
+                                <tr><td>Resource Instances</td><td>{{ cluster.resources_configured }}</td></tr>
+                                <tr><td>Last Updated</td><td>{{ cluster.last_updated }}</td></tr>
+                                <tr><td>Last Change</td><td>{{ cluster.last_change }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    {% if cluster.nodes %}
+                    <h4>Cluster Nodes</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Node</th>
+                                <th>ID</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for node in cluster.nodes %}
+                            <tr>
+                                <td>{{ node.name }}{% if node.name == cluster.dc_node %} <span class="cluster-badge cluster-badge-dc">DC</span>{% endif %}</td>
+                                <td>{{ node.id }}</td>
+                                <td><span class="cluster-badge cluster-badge-{{ node.status }}">{{ node.status }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+
+                    {% if cluster.quorum and cluster.quorum.available %}
+                    <h4>Quorum</h4>
+                    <div class="cluster-info-grid">
+                        <div class="cluster-info-card">
+                            <table class="info-table">
+                                <tr><td>Provider</td><td>{{ cluster.quorum.provider }}</td></tr>
+                                <tr><td>Quorate</td><td><span class="cluster-badge cluster-badge-{% if cluster.quorum.quorate %}online{% else %}offline{% endif %}">{{ 'Yes' if cluster.quorum.quorate else 'No' }}</span></td></tr>
+                                <tr><td>Expected Votes</td><td>{{ cluster.quorum.expected_votes }}</td></tr>
+                                <tr><td>Total Votes</td><td>{{ cluster.quorum.total_votes }}</td></tr>
+                                <tr><td>Quorum Required</td><td>{{ cluster.quorum.quorum_votes }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    {% if cluster.quorum.members %}
+                    <h5>Voting Members</h5>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Node ID</th><th>Votes</th><th>Name</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for member in cluster.quorum.members %}
+                            <tr>
+                                <td>{{ member.nodeid }}</td>
+                                <td>{{ member.votes }}</td>
+                                <td>{{ member.name }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                    {% endif %}
+
+                    {% if cluster.pcsd_status %}
+                    <h4>PCSD Status</h4>
+                    <table class="data-table">
+                        <thead><tr><th>Node</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {% for pcsd in cluster.pcsd_status %}
+                            <tr>
+                                <td>{{ pcsd.node }}</td>
+                                <td><span class="cluster-badge cluster-badge-{{ pcsd.status | lower }}">{{ pcsd.status }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+
+                    {% if cluster.daemon_status %}
+                    <h4>Daemon Status</h4>
+                    <table class="data-table">
+                        <thead><tr><th>Service</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {% for daemon in cluster.daemon_status %}
+                            <tr>
+                                <td>{{ daemon.name }}</td>
+                                <td>{{ daemon.status }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+
+                    {% if cluster.failed_actions %}
+                    <h4>Failed Resource Actions</h4>
+                    <table class="data-table">
+                        <thead><tr><th>Details</th></tr></thead>
+                        <tbody>
+                            {% for action in cluster.failed_actions %}
+                            <tr><td><code>{{ action.raw }}</code></td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+
+                    {% if cluster.node_attributes %}
+                    <h4>Node Attributes</h4>
+                    {% for node_name, attrs in cluster.node_attributes.items() %}
+                    <h5>{{ node_name }}</h5>
+                    <table class="data-table">
+                        <thead><tr><th>Attribute</th><th>Value</th></tr></thead>
+                        <tbody>
+                            {% for attr_name, attr_value in attrs.items() %}
+                            <tr><td>{{ attr_name }}</td><td>{{ attr_value }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Resources Subtab -->
+                <div id="cluster-resources" class="subtab-content">
+                    <h3>Cluster Resources</h3>
+
+                    {% if cluster.resource_groups %}
+                    <h4>Resource Groups</h4>
+                    {% for group in cluster.resource_groups %}
+                    <div class="cluster-resource-group">
+                        <h5>{{ group.name }}</h5>
+                        <table class="data-table">
+                            <thead>
+                                <tr><th>Resource</th><th>Type</th><th>Status</th><th>Node</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for res in group.resources %}
+                                <tr>
+                                    <td>{{ res.id }}</td>
+                                    <td><code>{{ res.type }}</code></td>
+                                    <td><span class="cluster-badge cluster-badge-{{ res.status | lower }}">{{ res.status }}</span></td>
+                                    <td>{{ res.node }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if cluster.clone_sets %}
+                    <h4>Clone Sets</h4>
+                    {% for clone in cluster.clone_sets %}
+                    <div class="cluster-resource-group">
+                        <h5>{{ clone.name }} <span class="cluster-badge cluster-badge-clone">clone</span></h5>
+                        <table class="data-table">
+                            <thead>
+                                <tr><th>Resource</th><th>Type</th><th>Status</th><th>Node</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for inst in clone.instances %}
+                                <tr>
+                                    <td>{{ inst.id }}</td>
+                                    <td><code>{{ inst.type }}</code></td>
+                                    <td><span class="cluster-badge cluster-badge-{{ inst.status | lower }}">{{ inst.status }}</span></td>
+                                    <td>{{ inst.node }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% set standalone = cluster.resources | selectattr('group', 'none') | selectattr('clone', 'none') | list %}
+                    {% if standalone %}
+                    <h4>Standalone Resources</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Resource</th><th>Type</th><th>Status</th><th>Node</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for res in standalone %}
+                            <tr>
+                                <td>{{ res.id }}</td>
+                                <td><code>{{ res.type }}</code></td>
+                                <td><span class="cluster-badge cluster-badge-{{ res.status | lower }}">{{ res.status }}</span></td>
+                                <td>{{ res.node }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+
+                    {% if cluster.migration_summary %}
+                    <h4>Migration Summary</h4>
+                    <pre>{{ cluster.migration_summary }}</pre>
+                    {% endif %}
+
+                    {% if cluster.properties %}
+                    <h4>Cluster Properties</h4>
+                    <pre>{{ cluster.properties }}</pre>
+                    {% endif %}
+                </div>
+
+                <!-- Fencing Subtab -->
+                <div id="cluster-fencing" class="subtab-content">
+                    <h3>Fencing / STONITH</h3>
+
+                    {% set stonith_resources = [] %}
+                    {% for res in cluster.resources %}
+                        {% if 'stonith' in res.type %}
+                            {% if stonith_resources.append(res) %}{% endif %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if stonith_resources %}
+                    <h4>STONITH Devices</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Device</th><th>Type</th><th>Status</th><th>Node</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for res in stonith_resources %}
+                            <tr>
+                                <td>{{ res.id }}</td>
+                                <td><code>{{ res.type }}</code></td>
+                                <td><span class="cluster-badge cluster-badge-{{ res.status | lower }}">{{ res.status }}</span></td>
+                                <td>{{ res.node }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+
+                    {% if cluster.fencing and cluster.fencing.available %}
+                    {% if cluster.fencing.sbd_status %}
+                    <h4>SBD Status</h4>
+                    <pre>{{ cluster.fencing.sbd_status }}</pre>
+                    {% endif %}
+
+                    {% if cluster.fencing.sbd_watchdog %}
+                    <h4>SBD Watchdog</h4>
+                    <pre>{{ cluster.fencing.sbd_watchdog }}</pre>
+                    {% endif %}
+
+                    {% if cluster.fencing.history %}
+                    <h4>Fencing History</h4>
+                    <pre>{{ cluster.fencing.history }}</pre>
+                    {% endif %}
+                    {% endif %}
+                </div>
+
+                <!-- Corosync Subtab -->
+                <div id="cluster-corosync" class="subtab-content">
+                    <h3>Corosync Configuration</h3>
+
+                    {% if cluster.corosync and cluster.corosync.available %}
+                    {% if cluster.corosync.config %}
+                    <h4>corosync.conf</h4>
+                    <pre>{{ cluster.corosync.config }}</pre>
+                    {% endif %}
+
+                    {% if cluster.corosync.ring_status %}
+                    <h4>Ring / Link Status</h4>
+                    <pre>{{ cluster.corosync.ring_status }}</pre>
+                    {% endif %}
+                    {% else %}
+                    <p>No Corosync configuration data available.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Cluster Logs Subtab -->
+                {% if cluster.logs and (cluster.logs.events or cluster.logs.journal or cluster.logs.analysis or cluster.logs.pacemaker) %}
+                <div id="cluster-logs" class="subtab-content">
+                    <h3>Cluster Logs</h3>
+
+                    {% if cluster.logs.pacemaker %}
+                    <h4>Pacemaker Log</h4>
+                    <div id="cluster-log-pacemaker" class="log-container"></div>
+                    <script>
+                        new LogViewer('cluster-log-pacemaker', {{ cluster.logs.pacemaker | tojson }});
+                    </script>
+                    {% endif %}
+
+                    {% if cluster.logs.events %}
+                    <h4>Cluster Events</h4>
+                    <div id="cluster-log-events" class="log-container"></div>
+                    <script>
+                        new LogViewer('cluster-log-events', {{ cluster.logs.events | tojson }});
+                    </script>
+                    {% endif %}
+
+                    {% if cluster.logs.analysis %}
+                    <h4>CRM Report Analysis</h4>
+                    <div id="cluster-log-analysis" class="log-container"></div>
+                    <script>
+                        new LogViewer('cluster-log-analysis', {{ cluster.logs.analysis | tojson }});
+                    </script>
+                    {% endif %}
+
+                    {% if cluster.logs.journal %}
+                    <h4>Cluster Journal{% if cluster.logs.journal_node %} ({{ cluster.logs.journal_node }}){% endif %}</h4>
+                    <div id="cluster-log-journal" class="log-container"></div>
+                    <script>
+                        new LogViewer('cluster-log-journal', {{ cluster.logs.journal | tojson }});
+                    </script>
+                    {% endif %}
+                </div>
+                {% endif %}
+
             </section>
             {% endif %}
 
