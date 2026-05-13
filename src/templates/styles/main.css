@@ -1381,3 +1381,97 @@ mark.search-hit.current {
   font-size: 0.625rem;
   opacity: 0.8;
 }
+
+/* =====================================================
+   Cluster Tab
+   ===================================================== */
+
+.cluster-warnings {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.cluster-warnings h4 {
+  margin: 0 0 0.5rem 0;
+  color: #e6a700;
+  font-size: 0.9rem;
+}
+
+.cluster-warnings pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 0.8rem;
+}
+
+.cluster-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.cluster-info-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+}
+
+.cluster-info-card h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.cluster-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
+.cluster-badge-online,
+.cluster-badge-Online,
+.cluster-badge-Started {
+  background: rgba(40, 167, 69, 0.15);
+  color: #28a745;
+}
+
+.cluster-badge-offline,
+.cluster-badge-Offline,
+.cluster-badge-Stopped {
+  background: rgba(220, 53, 69, 0.15);
+  color: #dc3545;
+}
+
+.cluster-badge-standby {
+  background: rgba(255, 193, 7, 0.15);
+  color: #e6a700;
+}
+
+.cluster-badge-dc {
+  background: rgba(0, 123, 255, 0.15);
+  color: #007bff;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+}
+
+.cluster-badge-clone {
+  background: rgba(108, 117, 125, 0.15);
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+}
+
+.cluster-resource-group {
+  margin-bottom: 1.25rem;
+}
+
+.cluster-resource-group h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+}
