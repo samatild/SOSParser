@@ -4,20 +4,16 @@
 import os
 import gzip
 import re
+from collections import deque
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from utils.logger import Logger
 
 
-# Configurable log line limits via environment variables
-# Default: 1000 lines, Max recommended: 5000 for browser performance
-DEFAULT_LOG_LINES = int(os.environ.get('LOG_LINES_DEFAULT', '1000'))
-# Some logs may warrant more lines (e.g., journal, messages)
-PRIMARY_LOG_LINES = int(os.environ.get('LOG_LINES_PRIMARY', str(DEFAULT_LOG_LINES)))
-# Secondary logs can have fewer lines (e.g., cron, mail)
-SECONDARY_LOG_LINES = int(os.environ.get('LOG_LINES_SECONDARY', str(DEFAULT_LOG_LINES // 2)))
-# Lines for historical/rotated logs (keep smaller to avoid heavy reports)
-HISTORICAL_LOG_LINES = int(os.environ.get('LOG_LINES_HISTORICAL', '500'))
+# Byte-based log file size limits (replaces line-count truncation)
+# Full log content is now read up to a byte cap for browser virtual scrolling
+MAX_LOG_BYTES = int(os.environ.get('MAX_LOG_FILE_BYTES', str(10 * 1024 * 1024)))        # 10 MB per log file
+MAX_HISTORICAL_LOG_BYTES = int(os.environ.get('MAX_HISTORICAL_LOG_BYTES', str(5 * 1024 * 1024)))  # 5 MB per historical file
 
 
 class LogAnalyzer:
@@ -59,7 +55,7 @@ class LogAnalyzer:
         # Boot log
         boot_log = log_dir / 'boot.log'
         if boot_log.exists():
-            data['boot_log'] = self._tail_file(boot_log, SECONDARY_LOG_LINES)
+            data['boot_log'] = self._read_log_file(boot_log)
         
         # CRITICAL: If no traditional logs found (Debian/Ubuntu case), use journalctl as fallback
         has_traditional_logs = bool(messages_content or syslog_content)
@@ -79,7 +75,7 @@ class LogAnalyzer:
         """
         # Try primary file first
         if primary_file.exists():
-            content = self._tail_file(primary_file, PRIMARY_LOG_LINES)
+            content = self._read_log_file(primary_file)
             if content and content.strip():
                 return content, base_name
         
@@ -87,7 +83,7 @@ class LogAnalyzer:
         rotated_files = self._find_rotated_files(log_dir, base_name)
         
         for rotated_file in rotated_files:
-            content = self._read_file_auto(rotated_file, PRIMARY_LOG_LINES)
+            content = self._read_file_auto(rotated_file)
             if content and content.strip():
                 return content, rotated_file.name
         
@@ -116,13 +112,13 @@ class LogAnalyzer:
     def _get_historical_logs(self, log_dir: Path, base_name: str) -> List[Dict[str, str]]:
         """
         Get list of historical log files with metadata.
-        Returns list of dicts with filename and content (limited lines).
+        Returns list of dicts with filename and full content (byte-capped).
         """
         rotated_files = self._find_rotated_files(log_dir, base_name)
         
         historical = []
         for f in rotated_files[:5]:  # Limit to 5 most recent historical files
-            content = self._read_file_auto(f, HISTORICAL_LOG_LINES)
+            content = self._read_file_auto(f, MAX_HISTORICAL_LOG_BYTES)
             if content and content.strip():
                 # Extract date from filename if possible
                 date_match = re.search(r'(\d{8})', f.name)
@@ -140,42 +136,55 @@ class LogAnalyzer:
         
         return historical
     
-    def _read_file_auto(self, file_path: Path, lines: int = None) -> Optional[str]:
+    def _read_file_auto(self, file_path: Path, max_bytes: int = None) -> Optional[str]:
         """
         Read a file, automatically handling gzip compression.
         """
-        if lines is None:
-            lines = DEFAULT_LOG_LINES
+        if max_bytes is None:
+            max_bytes = MAX_LOG_BYTES
         
         try:
             if file_path.suffix == '.gz':
-                return self._tail_gzip_file(file_path, lines)
+                return self._read_gzip_file(file_path, max_bytes)
             else:
-                return self._tail_file(file_path, lines)
+                return self._read_log_file(file_path, max_bytes)
         except Exception as e:
             Logger.warning(f"Failed to read {file_path}: {e}")
             return None
     
-    def _tail_gzip_file(self, file_path: Path, lines: int = None) -> str:
-        """Read last N lines from a gzipped file using memory-efficient streaming.
+    def _read_gzip_file(self, file_path: Path, max_bytes: int = None) -> str:
+        """Read a gzipped log file with byte-based safety cap.
         
-        Uses a deque with maxlen to only keep the last N lines in memory,
-        avoiding loading the entire decompressed file at once.
+        Streams through the decompressed content using a sliding window
+        to stay within the byte cap while remaining memory-efficient.
         """
-        if lines is None:
-            lines = DEFAULT_LOG_LINES
+        if max_bytes is None:
+            max_bytes = MAX_LOG_BYTES
         try:
-            from collections import deque
-            
-            # Use deque with maxlen to automatically discard old lines
-            # This streams through the file keeping only the last N lines
-            result_lines = deque(maxlen=lines)
+            result_lines = deque()
+            total_bytes = 0
+            kept_bytes = 0
+            truncated = False
             
             with gzip.open(file_path, 'rt', encoding='utf-8', errors='ignore') as f:
                 for line in f:
+                    line_len = len(line)
+                    total_bytes += line_len
                     result_lines.append(line)
+                    kept_bytes += line_len
+                    
+                    # Trim from front if we exceed the byte cap
+                    while kept_bytes > max_bytes and result_lines:
+                        removed = result_lines.popleft()
+                        kept_bytes -= len(removed)
+                        truncated = True
             
-            return ''.join(result_lines)
+            content = ''.join(result_lines)
+            if truncated:
+                total_mb = total_bytes / (1024 * 1024)
+                cap_mb = max_bytes / (1024 * 1024)
+                return f"[... Compressed file truncated: showing last {cap_mb:.0f}MB of {total_mb:.1f}MB decompressed ...]\n{content}"
+            return content
         except Exception as e:
             Logger.warning(f"Failed to read gzipped file {file_path}: {e}")
             return f"Error reading gzipped file: {e}"
@@ -191,12 +200,12 @@ class LogAnalyzer:
         if not dmesg.exists():
             dmesg = base_path / 'var' / 'log' / 'dmesg'
         if dmesg.exists():
-            data['dmesg'] = self._tail_file(dmesg, PRIMARY_LOG_LINES)
+            data['dmesg'] = self._read_log_file(dmesg)
         
         # kern.log
         kern_log = base_path / 'var' / 'log' / 'kern.log'
         if kern_log.exists():
-            data['kern_log'] = self._tail_file(kern_log, PRIMARY_LOG_LINES)
+            data['kern_log'] = self._read_log_file(kern_log)
         
         return data
     
@@ -209,17 +218,17 @@ class LogAnalyzer:
         # secure
         secure = base_path / 'var' / 'log' / 'secure'
         if secure.exists():
-            data['secure'] = self._tail_file(secure, PRIMARY_LOG_LINES)
+            data['secure'] = self._read_log_file(secure)
         
         # auth.log
         auth_log = base_path / 'var' / 'log' / 'auth.log'
         if auth_log.exists():
-            data['auth_log'] = self._tail_file(auth_log, PRIMARY_LOG_LINES)
+            data['auth_log'] = self._read_log_file(auth_log)
         
         # audit log
         audit_log = base_path / 'var' / 'log' / 'audit' / 'audit.log'
         if audit_log.exists():
-            data['audit_log'] = self._tail_file(audit_log, SECONDARY_LOG_LINES)
+            data['audit_log'] = self._read_log_file(audit_log)
         
         # lastlog
         lastlog = base_path / 'sos_commands' / 'login' / 'lastlog_-t_999999'
@@ -279,7 +288,7 @@ class LogAnalyzer:
         # Process each journalctl file
         for filename, file_path in sorted_files:
             try:
-                content = self._tail_file(file_path, PRIMARY_LOG_LINES)
+                content = self._read_log_file(file_path)
                 if content and content.strip():
                     # Create a friendly key
                     key = filename.replace('journalctl_', '').replace('--', '').replace('_', ' ').strip()
@@ -335,107 +344,54 @@ class LogAnalyzer:
         if not journal.exists():
             journal = base_path / 'sos_commands' / 'systemd' / 'journalctl_--no-pager_--boot'
         if journal.exists():
-            data['journal'] = self._tail_file(journal, PRIMARY_LOG_LINES)
+            data['journal'] = self._read_log_file(journal)
         
         # Cron log
         cron = base_path / 'var' / 'log' / 'cron'
         if cron.exists():
-            data['cron'] = self._tail_file(cron, SECONDARY_LOG_LINES)
+            data['cron'] = self._read_log_file(cron)
         
         # Mail log
         maillog = base_path / 'var' / 'log' / 'maillog'
         if maillog.exists():
-            data['maillog'] = self._tail_file(maillog, SECONDARY_LOG_LINES)
+            data['maillog'] = self._read_log_file(maillog)
         
         # YUM/DNF log
         yum_log = base_path / 'var' / 'log' / 'yum.log'
         if yum_log.exists():
-            data['yum_log'] = self._tail_file(yum_log, SECONDARY_LOG_LINES)
+            data['yum_log'] = self._read_log_file(yum_log)
         
         dnf_log = base_path / 'var' / 'log' / 'dnf.log'
         if dnf_log.exists():
-            data['dnf_log'] = self._tail_file(dnf_log, SECONDARY_LOG_LINES)
+            data['dnf_log'] = self._read_log_file(dnf_log)
         
         return data
     
-    def _tail_file(self, file_path: Path, lines: int = None) -> str:
-        """Read last N lines from a file using memory-efficient tail algorithm.
+    def _read_log_file(self, file_path: Path, max_bytes: int = None) -> str:
+        """Read entire log file with byte-based safety cap.
         
-        Uses reverse reading from end of file to avoid loading entire file into memory.
-        This is critical for large log files (multi-GB) that would cause OOM.
+        Reads the full file content for complete log visibility. For files
+        exceeding max_bytes, reads from the end and prepends a truncation notice.
         """
-        if lines is None:
-            lines = DEFAULT_LOG_LINES
+        if max_bytes is None:
+            max_bytes = MAX_LOG_BYTES
         try:
-            from collections import deque
-            
             file_size = file_path.stat().st_size
             
-            # For small files (< 1MB), just read the whole thing
-            if file_size < 1024 * 1024:
+            if file_size <= max_bytes:
+                # Read entire file
                 with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    all_lines = f.readlines()
-                    tail_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
-                    return ''.join(tail_lines)
+                    return f.read()
             
-            # For larger files, use memory-efficient reverse reading
-            # Read in chunks from the end of file
-            chunk_size = 8192  # 8KB chunks
-            result_lines = deque(maxlen=lines)
-            
+            # File exceeds cap — read last max_bytes from end
             with open(file_path, 'rb') as f:
-                # Start from end of file
-                f.seek(0, 2)  # Seek to end
-                remaining_size = f.tell()
-                buffer = b''
-                
-                while remaining_size > 0 and len(result_lines) < lines:
-                    # Calculate how much to read
-                    read_size = min(chunk_size, remaining_size)
-                    remaining_size -= read_size
-                    
-                    # Seek and read
-                    f.seek(remaining_size)
-                    chunk = f.read(read_size)
-                    buffer = chunk + buffer
-                    
-                    # Extract complete lines from buffer
-                    # Keep incomplete line at start in buffer for next iteration
-                    while b'\n' in buffer and len(result_lines) < lines:
-                        # Find the last newline
-                        last_newline = buffer.rfind(b'\n')
-                        if last_newline == len(buffer) - 1:
-                            # Newline at end, find the one before it
-                            second_last = buffer.rfind(b'\n', 0, last_newline)
-                            if second_last != -1:
-                                line = buffer[second_last + 1:last_newline + 1]
-                                buffer = buffer[:second_last + 1]
-                                try:
-                                    result_lines.appendleft(line.decode('utf-8', errors='ignore'))
-                                except Exception:
-                                    pass
-                            else:
-                                break
-                        else:
-                            line = buffer[last_newline + 1:]
-                            buffer = buffer[:last_newline + 1]
-                            if line:
-                                try:
-                                    result_lines.appendleft(line.decode('utf-8', errors='ignore'))
-                                except Exception:
-                                    pass
-                
-                # Handle any remaining buffer content
-                if buffer and len(result_lines) < lines:
-                    # Process remaining lines in buffer
-                    remaining_lines = buffer.decode('utf-8', errors='ignore').split('\n')
-                    for line in reversed(remaining_lines):
-                        if len(result_lines) >= lines:
-                            break
-                        if line:
-                            result_lines.appendleft(line + '\n')
+                f.seek(file_size - max_bytes)
+                f.readline()  # Skip partial first line
+                content = f.read().decode('utf-8', errors='ignore')
             
-            return ''.join(result_lines)
+            total_mb = file_size / (1024 * 1024)
+            cap_mb = max_bytes / (1024 * 1024)
+            return f"[... File truncated: showing last {cap_mb:.0f}MB of {total_mb:.1f}MB total ...]\n{content}"
         except Exception as e:
             Logger.warning(f"Failed to read {file_path}: {e}")
             return f"Error reading file: {e}"
